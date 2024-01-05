@@ -195,6 +195,10 @@
    mov     x3, #0
    EXPORT_PC
    bl      nterp_get_instance_field_offset
+   // Zero extension (nterp_get_instance_field_offset returns uint32_t) of the return value is
+   // needed as the value is used below via wider X0 register - AARCH64 AAPCS specifies that
+   // "... any unused bits in the register have unspecified value" (see 6.8.2, 6.9).
+   mov     w0, w0
    tbz     w0, #31, .L${opcode}_resume
    CLEAR_INSTANCE_VOLATILE_MARKER w0
    lsr     w2, wINST, #12              // w2<- B
@@ -273,6 +277,10 @@
    .endif
    EXPORT_PC
    bl      nterp_get_instance_field_offset
+   // Zero extension (nterp_get_instance_field_offset returns uint32_t) of the return value is
+   // needed as the value is used below via wider X0 register - AARCH64 AAPCS specifies that
+   // "... any unused bits in the register have unspecified value" (see 6.8.2, 6.9).
+   mov     w0, w0
    .if $is_object
    // Reload the value as it may have moved.
    ubfx    w1, wINST, #8, #4           // w1<- A
