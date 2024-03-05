@@ -58,9 +58,49 @@ void RuntimeCallbacks::RemoveDdmCallback(DdmCallback* cb) {
   Remove(cb, &ddm_callbacks_);
 }
 
+void RuntimeCallbacks::AddAppInfoCallback(AppInfoCallback* cb) {
+  WriterMutexLock mu(Thread::Current(), *callback_lock_);
+  appinfo_callbacks_.push_back(cb);
+}
+
+void RuntimeCallbacks::RemoveAppInfoCallback(AppInfoCallback* cb) {
+  WriterMutexLock mu(Thread::Current(), *callback_lock_);
+  Remove(cb, &appinfo_callbacks_);
+}
+
 void RuntimeCallbacks::DdmPublishChunk(uint32_t type, const ArrayRef<const uint8_t>& data) {
   for (DdmCallback* cb : COPY(ddm_callbacks_)) {
     cb->DdmPublishChunk(type, data);
+  }
+}
+
+void RuntimeCallbacks::SetCurrentProcessName(const std::string& process_name) {
+  for (AppInfoCallback* cb : COPY(appinfo_callbacks_)) {
+    cb->SetCurrentProcessName(process_name);
+  }
+}
+
+void RuntimeCallbacks::AddApplication(const std::string& package_name) {
+  for (AppInfoCallback* cb : COPY(appinfo_callbacks_)) {
+    cb->AddApplication(package_name);
+  }
+}
+
+void RuntimeCallbacks::RemoveApplication(const std::string& package_name) {
+  for (AppInfoCallback* cb : COPY(appinfo_callbacks_)) {
+    cb->RemoveApplication(package_name);
+  }
+}
+
+void RuntimeCallbacks::SetWaitingForDebugger(bool waiting) {
+  for (AppInfoCallback* cb : COPY(appinfo_callbacks_)) {
+    cb->SetWaitingForDebugger(waiting);
+  }
+}
+
+void RuntimeCallbacks::SetUserId(int user_id) {
+  for (AppInfoCallback* cb : COPY(appinfo_callbacks_)) {
+    cb->SetUserId(user_id);
   }
 }
 

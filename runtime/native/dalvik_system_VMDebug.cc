@@ -55,13 +55,16 @@ namespace art HIDDEN {
 
 static jobjectArray VMDebug_getVmFeatureList(JNIEnv* env, jclass) {
   ScopedObjectAccess soa(Thread::ForEnv(env));
-  return soa.AddLocalReference<jobjectArray>(CreateStringArray(soa.Self(), {
-      "method-trace-profiling",
-      "method-trace-profiling-streaming",
-      "method-sample-profiling",
-      "hprof-heap-dump",
-      "hprof-heap-dump-streaming",
-  }));
+  return soa.AddLocalReference<jobjectArray>(
+      CreateStringArray(soa.Self(),
+                        {
+                            "method-trace-profiling",
+                            "method-trace-profiling-streaming",
+                            "method-sample-profiling",
+                            "hprof-heap-dump",
+                            "hprof-heap-dump-streaming",
+                            "app_info",
+                        }));
 }
 
 static void VMDebug_startAllocCounting(JNIEnv*, jclass) {
@@ -514,6 +517,49 @@ static void VMDebug_setAllocTrackerStackDepth(JNIEnv* env, jclass, jint stack_de
   }
 }
 
+static void VMDebug_setCurrentProcessName(JNIEnv* env, jclass, jstring process_name) {
+  ScopedFastNativeObjectAccess soa(env);
+
+  // Android application ID naming convention states:
+  // "The name can contain uppercase or lowercase letters, numbers, and underscores ('_')"
+  // This is fine to convert to std::string
+  const char* c_process_name = env->GetStringUTFChars(process_name, NULL);
+  Runtime::Current()->GetRuntimeCallbacks()->SetCurrentProcessName(std::string(c_process_name));
+  env->ReleaseStringUTFChars(process_name, c_process_name);
+}
+
+static void VMDebug_addApplication(JNIEnv* env, jclass, jstring package_name) {
+  ScopedFastNativeObjectAccess soa(env);
+
+  // Android application ID naming convention states:
+  // "The name can contain uppercase or lowercase letters, numbers, and underscores ('_')"
+  // This is fine to convert to std::string
+  const char* c_package_name = env->GetStringUTFChars(package_name, NULL);
+  Runtime::Current()->GetRuntimeCallbacks()->AddApplication(std::string(c_package_name));
+  env->ReleaseStringUTFChars(package_name, c_package_name);
+}
+
+static void VMDebug_removeApplication(JNIEnv* env, jclass, jstring package_name) {
+  ScopedFastNativeObjectAccess soa(env);
+
+  // Android application ID naming convention states:
+  // "The name can contain uppercase or lowercase letters, numbers, and underscores ('_')"
+  // This is fine to convert to std::string
+  const char* c_package_name = env->GetStringUTFChars(package_name, NULL);
+  Runtime::Current()->GetRuntimeCallbacks()->RemoveApplication(std::string(c_package_name));
+  env->ReleaseStringUTFChars(package_name, c_package_name);
+}
+
+static void VMDebug_setWaitingForDebugger(JNIEnv* env, jclass, jboolean waiting) {
+  ScopedFastNativeObjectAccess soa(env);
+  Runtime::Current()->GetRuntimeCallbacks()->SetWaitingForDebugger(waiting);
+}
+
+static void VMDebug_setUserId(JNIEnv* env, jclass, jint user_id) {
+  ScopedFastNativeObjectAccess soa(env);
+  Runtime::Current()->GetRuntimeCallbacks()->SetUserId(user_id);
+}
+
 static JNINativeMethod gMethods[] = {
     NATIVE_METHOD(VMDebug, countInstancesOfClass, "(Ljava/lang/Class;Z)J"),
     NATIVE_METHOD(VMDebug, countInstancesOfClasses, "([Ljava/lang/Class;Z)[J"),
@@ -542,6 +588,11 @@ static JNINativeMethod gMethods[] = {
     NATIVE_METHOD(VMDebug, nativeAttachAgent, "(Ljava/lang/String;Ljava/lang/ClassLoader;)V"),
     NATIVE_METHOD(VMDebug, allowHiddenApiReflectionFrom, "(Ljava/lang/Class;)V"),
     NATIVE_METHOD(VMDebug, setAllocTrackerStackDepth, "(I)V"),
+    NATIVE_METHOD(VMDebug, setCurrentProcessName, "(Ljava/lang/String;)V"),
+    NATIVE_METHOD(VMDebug, setWaitingForDebugger, "(Z)V"),
+    NATIVE_METHOD(VMDebug, addApplication, "(Ljava/lang/String;)V"),
+    NATIVE_METHOD(VMDebug, removeApplication, "(Ljava/lang/String;)V"),
+    NATIVE_METHOD(VMDebug, setUserId, "(I)V"),
 };
 
 void register_dalvik_system_VMDebug(JNIEnv* env) {

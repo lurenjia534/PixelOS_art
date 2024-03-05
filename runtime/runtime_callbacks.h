@@ -70,6 +70,19 @@ class DdmCallback {
       REQUIRES_SHARED(Locks::mutator_lock_) = 0;
 };
 
+class AppInfoCallback {
+ public:
+  virtual ~AppInfoCallback() {}
+  virtual void SetCurrentProcessName(const std::string& process_name)
+      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  virtual void AddApplication(const std::string& package_name)
+      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  virtual void RemoveApplication(const std::string& package_name)
+      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  virtual void SetWaitingForDebugger(bool waiting) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  virtual void SetUserId(int uid) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+};
+
 class DebuggerControlCallback {
  public:
   virtual ~DebuggerControlCallback() {}
@@ -240,6 +253,15 @@ class EXPORT RuntimeCallbacks {
   void AddDdmCallback(DdmCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
   void RemoveDdmCallback(DdmCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
 
+  void SetCurrentProcessName(const std::string& process_name) REQUIRES_SHARED(Locks::mutator_lock_);
+  void AddApplication(const std::string& package_name) REQUIRES_SHARED(Locks::mutator_lock_);
+  void RemoveApplication(const std::string& package_name) REQUIRES_SHARED(Locks::mutator_lock_);
+  void SetWaitingForDebugger(bool waiting) REQUIRES_SHARED(Locks::mutator_lock_);
+  void SetUserId(int uid) REQUIRES_SHARED(Locks::mutator_lock_);
+
+  void AddAppInfoCallback(AppInfoCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
+  void RemoveAppInfoCallback(AppInfoCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
+
   void StartDebugger() REQUIRES_SHARED(Locks::mutator_lock_);
   // NO_THREAD_SAFETY_ANALYSIS since this is only called when we are in the middle of shutting down
   // and the mutator_lock_ is no longer acquirable.
@@ -279,6 +301,7 @@ class EXPORT RuntimeCallbacks {
       GUARDED_BY(callback_lock_);
   std::vector<DdmCallback*> ddm_callbacks_
       GUARDED_BY(callback_lock_);
+  std::vector<AppInfoCallback*> appinfo_callbacks_ GUARDED_BY(callback_lock_);
   std::vector<DebuggerControlCallback*> debugger_control_callbacks_
       GUARDED_BY(callback_lock_);
   std::vector<ReflectiveValueVisitCallback*> reflective_value_visit_callbacks_
