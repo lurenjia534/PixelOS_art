@@ -697,6 +697,13 @@ class Generator:
                      [],
                      mainline_presubmit_apex_suffix)
 
+    # ART mainline presubmits tests without APEX suffix
+    art_mainline_presubmit_tests_dict = \
+        gen_tests_dict(mainline_presubmit_tests,
+                       failing_tests_excluded_from_mainline_presubmits,
+                       [],
+                       "")
+
     # Android Virtualization Framework presubmits
     avf_presubmit_tests = ["ComposHostTestCases"]
     avf_presubmit_tests_dict = gen_tests_dict(avf_presubmit_tests,
@@ -730,6 +737,7 @@ class Generator:
         (test_group_name, test_group_dict)
         for (test_group_name, test_group_dict)
         in [
+            ("art-mainline-presubmit", art_mainline_presubmit_tests_dict),
             ("mainline-presubmit", mainline_presubmit_tests_dict),
             ("presubmit", presubmit_tests_dict),
             ("hwasan-presubmit", hwasan_presubmit_tests_dict),
@@ -1052,6 +1060,8 @@ class Generator:
     print(f"Generated TEST_MAPPING entries for {num_expected_succeeding_tests} ART run-tests out"
           f" of {len(run_tests)} ({expected_succeeding_tests_percentage}%):")
     for (num_tests, test_kind, tests_percentage, test_group_name) in [
+        (num_mainline_presubmit_run_tests, "ART run-tests", mainline_presubmit_run_tests_percentage,
+         "art-mainline-presubmit"),
         (num_mainline_presubmit_run_tests, "ART run-tests", mainline_presubmit_run_tests_percentage,
          "mainline-presubmit"),
         (num_presubmit_run_tests, "ART run-tests", presubmit_run_tests_percentage, "presubmit"),
