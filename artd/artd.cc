@@ -51,6 +51,7 @@
 #include "android-base/errors.h"
 #include "android-base/file.h"
 #include "android-base/logging.h"
+#include "android-base/parseint.h"
 #include "android-base/result.h"
 #include "android-base/scopeguard.h"
 #include "android-base/strings.h"
@@ -113,10 +114,13 @@ using ::android::base::ErrnoError;
 using ::android::base::Error;
 using ::android::base::Join;
 using ::android::base::make_scope_guard;
+using ::android::base::ParseInt;
 using ::android::base::ReadFileToString;
 using ::android::base::Result;
 using ::android::base::Split;
+using ::android::base::StartsWith;
 using ::android::base::Tokenize;
+using ::android::base::Trim;
 using ::android::base::WriteStringToFd;
 using ::android::base::WriteStringToFile;
 using ::android::fs_mgr::FstabEntry;
@@ -1428,6 +1432,39 @@ ScopedAStatus Artd::commitPreRebootStagedFiles(const std::vector<ArtifactsPath>&
   return ScopedAStatus::ok();
 }
 
+ScopedAStatus Artd::checkPreRebootSystemRequirements(const std::string& in_chrootDir,
+                                                     bool* _aidl_return) {
+  RETURN_FATAL_IF_PRE_REBOOT(options_);
+  BuildSystemProperties new_props =
+      OR_RETURN_NON_FATAL(BuildSystemProperties::Create(in_chrootDir + "/system/build.prop"));
+  std::string old_release_str = props_->GetOrEmpty("ro.build.version.release");
+  int old_release;
+  if (!ParseInt(old_release_str, &old_release)) {
+    return NonFatal(
+        ART_FORMAT("Failed to read or parse old release number, got '{}'", old_release_str));
+  }
+  std::string new_release_str = new_props.GetOrEmpty("ro.build.version.release");
+  int new_release;
+  if (!ParseInt(new_release_str, &new_release)) {
+    return NonFatal(
+        ART_FORMAT("Failed to read or parse new release number, got '{}'", new_release_str));
+  }
+  if (new_release - old_release >= 2) {
+    // When the release version difference is large, there is no particular technical reason why we
+    // can't run Pre-reboot Dexopt, but we cannot test and support those cases.
+    LOG(WARNING) << ART_FORMAT(
+        "Pre-reboot Dexopt not supported due to large difference in release versions (old_release: "
+        "{}, new_release: {})",
+        old_release,
+        new_release);
+    *_aidl_return = false;
+    return ScopedAStatus::ok();
+  }
+
+  *_aidl_return = true;
+  return ScopedAStatus::ok();
+}
+
 Result<void> Artd::Start() {
   OR_RETURN(SetLogVerbosity());
   MemMap::Init();
@@ -1859,6 +1896,38 @@ ScopedAStatus Artd::validateClassLoaderContext(const std::string& in_dexFile,
     *_aidl_return = std::nullopt;
   }
   return ScopedAStatus::ok();
+}
+
+Result<BuildSystemProperties> BuildSystemProperties::Create(const std::string& filename) {
+  std::string content;
+  if (!ReadFileToString(filename, &content)) {
+    return ErrnoErrorf("Failed to read '{}'", filename);
+  }
+  std::unordered_map<std::string, std::string> system_properties;
+  for (const std::string& raw_line : Split(content, "\n")) {
+    std::string line = Trim(raw_line);
+    if (line.empty() || StartsWith(line, '#')) {
+      continue;
+    }
+    size_t pos = line.find('=');
+    if (pos == std::string::npos || pos == 0 || (pos == 1 && line[1] == '?')) {
+      return Errorf("Malformed system property line '{}' in file '{}'", line, filename);
+    }
+    if (line[pos - 1] == '?') {
+      std::string key = line.substr(/*pos=*/0, /*n=*/pos - 1);
+      if (system_properties.find(key) == system_properties.end()) {
+        system_properties[key] = line.substr(pos + 1);
+      }
+    } else {
+      system_properties[line.substr(/*pos=*/0, /*n=*/pos)] = line.substr(pos + 1);
+    }
+  }
+  return BuildSystemProperties(std::move(system_properties));
+}
+
+std::string BuildSystemProperties::GetProperty(const std::string& key) const {
+  auto it = system_properties_.find(key);
+  return it != system_properties_.end() ? it->second : "";
 }
 
 }  // namespace artd

@@ -32,6 +32,8 @@ class DexoptChrootSetup : public aidl::com::android::server::art::BnDexoptChroot
  public:
   ndk::ScopedAStatus setUp(const std::optional<std::string>& in_otaSlot) override;
 
+  ndk::ScopedAStatus init() override;
+
   ndk::ScopedAStatus tearDown() override;
 
   android::base::Result<void> Start();
@@ -39,6 +41,8 @@ class DexoptChrootSetup : public aidl::com::android::server::art::BnDexoptChroot
  private:
   android::base::Result<void> SetUpChroot(const std::optional<std::string>& ota_slot) const
       REQUIRES(mu_);
+
+  android::base::Result<void> InitChroot() const REQUIRES(mu_);
 
   android::base::Result<void> TearDownChroot() const REQUIRES(mu_);
 

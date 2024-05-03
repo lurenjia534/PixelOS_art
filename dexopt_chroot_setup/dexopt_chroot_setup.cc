@@ -68,6 +68,7 @@ using ::android::base::SetProperty;
 using ::android::base::Split;
 using ::android::base::Tokenize;
 using ::android::base::WaitForProperty;
+using ::android::base::WriteStringToFile;
 using ::android::fs_mgr::FstabEntry;
 using ::art::tools::CmdlineBuilder;
 using ::art::tools::Fatal;
@@ -79,6 +80,8 @@ using ::ndk::ScopedAStatus;
 constexpr const char* kServiceName = "dexopt_chroot_setup";
 const NoDestructor<std::string> kBindMountTmpDir(
     std::string(DexoptChrootSetup::PRE_REBOOT_DEXOPT_DIR) + "/mount_tmp");
+const NoDestructor<std::string> kOtaSlotFile(std::string(DexoptChrootSetup::PRE_REBOOT_DEXOPT_DIR) +
+                                             "/ota_slot");
 constexpr mode_t kChrootDefaultMode = 0755;
 constexpr std::chrono::milliseconds kSnapshotCtlTimeout = std::chrono::seconds(60);
 
@@ -303,6 +306,20 @@ Result<void> MountTmpfs(const std::string& target, std::string_view se_context) 
   return {};
 }
 
+Result<std::optional<std::string>> LoadOtaSlotFile() {
+  std::string content;
+  if (!ReadFileToString(*kOtaSlotFile, &content)) {
+    return ErrnoErrorf("Failed to read '{}'", *kOtaSlotFile);
+  }
+  if (content == "_a" || content == "_b") {
+    return content;
+  }
+  if (content.empty()) {
+    return std::nullopt;
+  }
+  return Errorf("Invalid content of '{}': '{}'", *kOtaSlotFile, content);
+}
+
 }  // namespace
 
 ScopedAStatus DexoptChrootSetup::setUp(const std::optional<std::string>& in_otaSlot) {
@@ -315,6 +332,16 @@ ScopedAStatus DexoptChrootSetup::setUp(const std::optional<std::string>& in_otaS
     return Fatal(ART_FORMAT("Invalid OTA slot '{}'", in_otaSlot.value()));
   }
   OR_RETURN_NON_FATAL(SetUpChroot(in_otaSlot));
+  return ScopedAStatus::ok();
+}
+
+ScopedAStatus DexoptChrootSetup::init() {
+  if (!mu_.try_lock()) {
+    return Fatal("Unexpected concurrent calls");
+  }
+  std::lock_guard<std::mutex> lock(mu_, std::adopt_lock);
+
+  OR_RETURN_NON_FATAL(InitChroot());
   return ScopedAStatus::ok();
 }
 
@@ -406,6 +433,16 @@ Result<void> DexoptChrootSetup::SetUpChroot(const std::optional<std::string>& ot
     OR_RETURN(BindMountRecursive(src, PathInChroot(src)));
   }
 
+  if (!WriteStringToFile(ota_slot.value_or(""), *kOtaSlotFile)) {
+    return ErrnoErrorf("Failed to write '{}'", *kOtaSlotFile);
+  }
+
+  return {};
+}
+
+Result<void> DexoptChrootSetup::InitChroot() const {
+  std::optional<std::string> ota_slot = OR_RETURN(LoadOtaSlotFile());
+
   // Generate empty linker config to suppress warnings.
   if (!android::base::WriteStringToFile("", PathInChroot("/linkerconfig/ld.config.txt"))) {
     PLOG(WARNING) << "Failed to generate empty linker config to suppress warnings";
@@ -480,6 +517,11 @@ Result<void> DexoptChrootSetup::TearDownChroot() const {
   std::filesystem::remove_all(*kBindMountTmpDir, ec);
   if (ec) {
     return Errorf("Failed to remove dir '{}': {}", *kBindMountTmpDir, ec.message());
+  }
+
+  std::filesystem::remove(*kOtaSlotFile, ec);
+  if (ec) {
+    return Errorf("Failed to remove file '{}': {}", *kOtaSlotFile, ec.message());
   }
 
   if (!SetProperty("sys.snapshotctl.unmap", "requested")) {

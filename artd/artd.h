@@ -228,6 +228,9 @@ class Artd : public aidl::com::android::server::art::BnArtd {
           in_profiles,
       bool* _aidl_return) override;
 
+  ndk::ScopedAStatus checkPreRebootSystemRequirements(const std::string& in_chrootDir,
+                                                      bool* _aidl_return) override;
+
   ndk::ScopedAStatus preRebootInit() override;
 
   ndk::ScopedAStatus validateDexPath(const std::string& in_dexFile,
@@ -327,6 +330,23 @@ class Artd : public aidl::com::android::server::art::BnArtd {
       restorecon_;
   const std::optional<std::string> pre_reboot_tmp_dir_;
   const std::optional<std::string> init_environ_rc_path_;
+};
+
+// A class for getting system properties from a `build.prop` file.
+class BuildSystemProperties : public tools::SystemProperties {
+ public:
+  // Creates an instance and loads system properties from the `build.prop` file specified at the
+  // given path.
+  static android::base::Result<BuildSystemProperties> Create(const std::string& filename);
+
+ protected:
+  std::string GetProperty(const std::string& key) const override;
+
+ private:
+  explicit BuildSystemProperties(std::unordered_map<std::string, std::string>&& system_properties)
+      : system_properties_(std::move(system_properties)) {}
+
+  const std::unordered_map<std::string, std::string> system_properties_;
 };
 
 }  // namespace artd
