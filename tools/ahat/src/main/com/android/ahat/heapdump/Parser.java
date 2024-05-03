@@ -400,7 +400,7 @@ public class Parser {
 
                   Site site = sites.get(stackSerialNumber);
                   AhatClassObj classObj = classById.get(classId);
-                  AhatClassInstance obj = new AhatClassInstance(objectId);
+                  AhatClassInstance obj = AhatClassInstance.create(classObj, objectId);
                   obj.initialize(heaps.getCurrentHeap(), site, classObj);
                   obj.setTemporaryUserData(data);
                   instances.add(obj);

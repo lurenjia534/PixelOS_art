@@ -37,6 +37,8 @@ public class AhatSnapshot implements Diffable<AhatSnapshot> {
 
   private AhatSnapshot mBaseline = this;
 
+  private AhatBitmapInstance.BitmapDumpData mBitmapDumpData = null;
+
   AhatSnapshot(SuperRoot root,
                Instances<AhatInstance> instances,
                List<AhatHeap> heaps,
@@ -49,7 +51,8 @@ public class AhatSnapshot implements Diffable<AhatSnapshot> {
     mRootSite = rootSite;
 
     AhatInstance.computeReachability(mSuperRoot, progress, mInstances.size());
-    AhatClassInstance.findBitmapDumpData(mSuperRoot, mInstances);
+
+    mBitmapDumpData = AhatBitmapInstance.findBitmapDumpData(mSuperRoot, mInstances);
 
     for (AhatInstance inst : mInstances) {
       // Add this instance to its site.

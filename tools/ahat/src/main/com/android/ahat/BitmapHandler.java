@@ -18,6 +18,7 @@ package com.android.ahat;
 
 import com.android.ahat.heapdump.AhatInstance;
 import com.android.ahat.heapdump.AhatSnapshot;
+import com.android.ahat.heapdump.AhatBitmapInstance;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.awt.image.BufferedImage;
@@ -61,12 +62,12 @@ class BitmapHandler implements HttpHandler {
       Query query = new Query(exchange.getRequestURI());
       long id = query.getLong("id", 0);
       AhatInstance inst = mSnapshot.findInstance(id);
-      if (inst == null) {
+      if (inst == null || !inst.isBitmapInstance()) {
         handle_404(exchange);
         return;
       }
 
-      AhatInstance.Bitmap bitmap = inst.asBitmap();
+      AhatBitmapInstance.Bitmap bitmap = inst.asBitmapInstance().getBitmap();
       if (bitmap == null) {
         handle_404(exchange);
         return;

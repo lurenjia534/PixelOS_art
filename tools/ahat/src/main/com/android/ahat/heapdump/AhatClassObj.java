@@ -162,6 +162,23 @@ public class AhatClassObj extends AhatInstance {
     return true;
   }
 
+  /**
+   * Returns true if this is a subclass of another class with the given name.
+   *
+   * @param className the name of the class to check for subclass
+   * @return true if this is a subclass of another class with the given name
+   */
+  public boolean isSubClassOf(String className) {
+    AhatClassObj cls = this;
+    while (cls != null) {
+      if (className.equals(cls.getName())) {
+        return true;
+      }
+      cls = cls.getSuperClassObj();
+    }
+    return false;
+  }
+
   @Override public AhatClassObj asClassObj() {
     return this;
   }

@@ -359,21 +359,21 @@ public class InstanceTest {
   public void objectNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.getDumpedAhatInstance("anObject");
-    assertNull(obj.asBitmap());
+    assertNull(obj.asBitmapInstance());
   }
 
   @Test
   public void arrayNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.getDumpedAhatInstance("gcPathArray");
-    assertNull(obj.asBitmap());
+    assertNull(obj.asBitmapInstance());
   }
 
   @Test
   public void classObjNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.findClass("Main");
-    assertNull(obj.asBitmap());
+    assertNull(obj.asBitmapInstance());
   }
 
   @Test
