@@ -16,6 +16,7 @@
 
 package com.android.ahat.heapdump;
 
+import java.lang.Comparable;
 import java.util.Objects;
 
 /**
@@ -27,7 +28,7 @@ import java.util.Objects;
  * <p>
  * Size objects are immutable.
  */
-public class Size {
+public class Size implements Comparable<Size> {
   private final long mJavaSize;
   private final long mRegisteredNativeSize;
 
@@ -123,6 +124,11 @@ public class Size {
       return mJavaSize == s.mJavaSize && mRegisteredNativeSize == s.mRegisteredNativeSize;
     }
     return false;
+  }
+
+  @Override public int compareTo(Size other) {
+    return Long.compare(this.mJavaSize + this.mRegisteredNativeSize,
+                        other.mJavaSize + other.mRegisteredNativeSize);
   }
 }
 

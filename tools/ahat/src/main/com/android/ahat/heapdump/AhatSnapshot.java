@@ -212,4 +212,8 @@ public class AhatSnapshot implements Diffable<AhatSnapshot> {
   @Override public boolean isPlaceHolder() {
     return false;
   }
+
+  public List<List<AhatBitmapInstance>> findDuplicateBitmaps() {
+    return AhatBitmapInstance.findDuplicates(mBitmapDumpData);
+  }
 }

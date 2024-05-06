@@ -17,11 +17,14 @@
 package com.android.ahat;
 
 import com.android.ahat.heapdump.AhatHeap;
+import com.android.ahat.heapdump.AhatInstance;
+import com.android.ahat.heapdump.AhatBitmapInstance;
 import com.android.ahat.heapdump.AhatSnapshot;
 import com.android.ahat.heapdump.Reachability;
 import com.android.ahat.heapdump.Size;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 class OverviewHandler implements AhatHandler {
 
@@ -57,6 +60,9 @@ class OverviewHandler implements AhatHandler {
 
     doc.section("Bytes Retained by Heap");
     printHeapSizes(doc);
+
+    doc.section("Heap Analysis Result");
+    printDuplicateBitmaps(doc);
   }
 
   private void printHeapSizes(Doc doc) {
@@ -74,6 +80,31 @@ class OverviewHandler implements AhatHandler {
     }
     SizeTable.row(doc, DocString.text("Total"), totalSize, totalBase);
     SizeTable.end(doc);
+  }
+
+  private void printDuplicateBitmaps(Doc doc) {
+    List<List<AhatBitmapInstance>> duplicates = mSnapshot.findDuplicateBitmaps();
+    if (duplicates != null && duplicates.size() > 0) {
+      SizeTable.table(doc, mSnapshot.isDiffed(),
+          new Column("Heap"),
+          new Column("Duplicated Bitmaps"));
+      Size totalSize = Size.ZERO;
+      Size totalBase = Size.ZERO;
+      for (List<AhatBitmapInstance> list : duplicates) {
+        for (AhatBitmapInstance inst : list) {
+          AhatInstance base = inst.getBaseline();
+          SizeTable.row(doc, inst.getSize(), base.getSize(),
+            DocString.text(inst.getHeap().getName()),
+            Summarizer.summarize(inst));
+          totalSize = totalSize.plus(inst.getSize());
+          totalBase = totalBase.plus(base.getSize());
+        }
+      }
+      SizeTable.row(doc, totalSize, totalBase,
+          DocString.text("Total"),
+          DocString.text("All duplicated bitmaps"));
+      SizeTable.end(doc);
+    }
   }
 }
 

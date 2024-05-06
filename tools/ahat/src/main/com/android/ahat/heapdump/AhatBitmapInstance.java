@@ -17,10 +17,17 @@
 package com.android.ahat.heapdump;
 
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.ArrayListMultimap;
 
 /**
  * A java object that has `android.graphics.Bitmap` as its base class.
@@ -53,12 +60,14 @@ public class AhatBitmapInstance extends AhatClassInstance {
     private int format;
     private Map<Long, byte[]> buffers;
     private Set<Long> referenced;
+    private ListMultimap<BitmapInfo, AhatBitmapInstance> instances;
 
-    public BitmapDumpData(int count, int format) {
+    BitmapDumpData(int count, int format) {
       this.count = count;
       this.format = format;
       this.buffers = new HashMap<Long, byte[]>(count);
       this.referenced = new HashSet<Long>(count);
+      this.instances = ArrayListMultimap.create();
     }
   };
 
@@ -101,12 +110,17 @@ public class AhatBitmapInstance extends AhatClassInstance {
       return null;
     }
 
-    /* initialize mBitmapInfo for all bitmap instances
+    /* Build the map for all the bitmap instances with its BitmapInfo as key,
+     * the map would be used to identify duplicated bitmaps later.  This also
+     * initializes `mBitmapInfo` of each bitmap instance.
      */
     for (AhatInstance obj : instances) {
       AhatBitmapInstance bmp = obj.asBitmapInstance();
       if (bmp != null) {
-        bmp.getBitmapInfo(result);
+        BitmapInfo info = bmp.getBitmapInfo(result);
+        if (info != null) {
+          result.instances.put(info, bmp);
+        }
       }
     }
 
@@ -154,17 +168,65 @@ public class AhatBitmapInstance extends AhatClassInstance {
     return result;
   }
 
+  /**
+   * find duplicated bitmap instances
+   *
+   * @param bitmapDumpData parsed bitmap dump data
+   * @return A list of duplicated bitmaps (the same duplication stored in a sub-list)
+   */
+  public static List<List<AhatBitmapInstance>> findDuplicates(BitmapDumpData bitmapDumpData) {
+    if (bitmapDumpData != null) {
+      List<List<AhatBitmapInstance>> result = new ArrayList<>();
+      for (BitmapInfo info : bitmapDumpData.instances.keySet()) {
+        List<AhatBitmapInstance> list = bitmapDumpData.instances.get(info);
+        if (list != null && list.size() > 1) {
+          result.add(list);
+        }
+      }
+      // sort by size in descend order
+      if (result.size() > 1) {
+        result.sort((List<AhatBitmapInstance> l1, List<AhatBitmapInstance> l2) -> {
+          return l2.get(0).getSize().compareTo(l1.get(0).getSize());
+        });
+      }
+      return result;
+    }
+    return null;
+  }
+
   private static class BitmapInfo {
     private final int width;
     private final int height;
     private final int format;
     private final byte[] buffer;
+    private final int bufferHash;
 
     public BitmapInfo(int width, int height, int format, byte[] buffer) {
       this.width = width;
       this.height = height;
       this.format = format;
       this.buffer = buffer;
+      bufferHash = Arrays.hashCode(buffer);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(width, height, format, bufferHash);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (!(o instanceof BitmapInfo)) {
+        return false;
+      }
+      BitmapInfo other = (BitmapInfo)o;
+      return (this.width == other.width)
+          && (this.height == other.height)
+          && (this.format == other.format)
+          && (this.bufferHash == other.bufferHash);
     }
   }
 
@@ -173,6 +235,10 @@ public class AhatBitmapInstance extends AhatClassInstance {
    * info is available.
    */
   private BitmapInfo getBitmapInfo(BitmapDumpData bitmapDumpData) {
+    if (mBitmapInfo != null) {
+      return mBitmapInfo;
+    }
+
     if (!isInstanceOfClass("android.graphics.Bitmap")) {
       return null;
     }

@@ -34,6 +34,9 @@ java_binary_host {
     // Use a relaxed version to allow distribution against older runtimes.
     java_version: "11",
     javacflags: ["-Xdoclint:all/protected"],
+    static_libs: [
+        "guava",
+    ],
 }
 
 // --- ahat-test-dump.jar --------------
