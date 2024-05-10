@@ -142,6 +142,20 @@ This sequence:
 5. cleans up the environment (deactivates the APEXes and removes the `chroot`
    environment).
 
+### Running ART gtests on host
+
+You first need to build the boot classpath and boot image on host:
+
+```bash
+m art-host-tests
+```
+
+Then you can use `atest --host` to run host gtests, e.g:
+
+```bash
+atest --host art_runtime_tests
+```
+
 ## Test Mapping
 
 ART Testing supports the execution of tests via [Test

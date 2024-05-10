@@ -237,6 +237,12 @@ class CommonArtTestImpl {
   // Returns ${ANDROID_HOST_OUT}.
   static std::string GetAndroidHostOut();
 
+  // Returns the path where boot classpath and boot image files are installed
+  // for host tests (by the art_common mk module, typically built through "m
+  // art-host-tests"). Different in CI where they are unpacked from the
+  // art-host-tests.zip file.
+  static std::string GetHostBootClasspathInstallRoot();
+
   // File location to boot.art, e.g. /apex/com.android.art/javalib/boot.art
   static std::string GetCoreArtLocation();
 
