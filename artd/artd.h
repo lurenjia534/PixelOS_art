@@ -225,7 +225,8 @@ class Artd : public aidl::com::android::server::art::BnArtd {
   ndk::ScopedAStatus commitPreRebootStagedFiles(
       const std::vector<aidl::com::android::server::art::ArtifactsPath>& in_artifacts,
       const std::vector<aidl::com::android::server::art::ProfilePath::WritableProfilePath>&
-          in_profiles) override;
+          in_profiles,
+      bool* _aidl_return) override;
 
   ndk::ScopedAStatus preRebootInit() override;
 

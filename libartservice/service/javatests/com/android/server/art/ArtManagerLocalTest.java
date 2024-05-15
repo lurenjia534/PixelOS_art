@@ -70,6 +70,7 @@ import com.android.server.art.model.DeleteResult;
 import com.android.server.art.model.DexoptParams;
 import com.android.server.art.model.DexoptResult;
 import com.android.server.art.model.DexoptStatus;
+import com.android.server.art.prereboot.PreRebootStatsReporter;
 import com.android.server.art.proto.DexMetadataConfig;
 import com.android.server.art.testing.StaticMockitoRule;
 import com.android.server.art.testing.TestingUtils;
@@ -138,6 +139,7 @@ public class ArtManagerLocalTest {
     @Mock private DexMetadataHelper.Injector mDexMetadataHelperInjector;
     @Mock private Context mContext;
     @Mock private PreRebootDexoptJob mPreRebootDexoptJob;
+    @Mock private PreRebootStatsReporter.Injector mPreRebootStatsReporterInjector;
     private PackageState mPkgState1;
     private AndroidPackage mPkg1;
     private CheckedSecondaryDexInfo mPkg1SecondaryDexInfo1;
@@ -182,6 +184,10 @@ public class ArtManagerLocalTest {
         lenient().when(mInjector.getDexMetadataHelper()).thenReturn(mDexMetadataHelper);
         lenient().when(mInjector.getContext()).thenReturn(mContext);
         lenient().when(mInjector.getPreRebootDexoptJob()).thenReturn(mPreRebootDexoptJob);
+        lenient()
+                .when(mInjector.createPreRebootStatsReporter())
+                .thenAnswer(
+                        invocation -> new PreRebootStatsReporter(mPreRebootStatsReporterInjector));
 
         lenient().when(mArtFileManagerInjector.getArtd()).thenReturn(mArtd);
         lenient().when(mArtFileManagerInjector.getUserManager()).thenReturn(mUserManager);
@@ -283,6 +289,12 @@ public class ArtManagerLocalTest {
         lenient()
                 .when(mContext.registerReceiver(mBroadcastReceiverCaptor.capture(), any()))
                 .thenReturn(mock(Intent.class));
+
+        File tempFile = File.createTempFile("pre-reboot-stats", ".pb");
+        tempFile.deleteOnExit();
+        lenient()
+                .when(mPreRebootStatsReporterInjector.getFilename())
+                .thenReturn(tempFile.getAbsolutePath());
 
         mArtManagerLocal = new ArtManagerLocal(mInjector);
     }

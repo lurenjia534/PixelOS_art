@@ -37,6 +37,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.art.model.ArtFlags;
 import com.android.server.art.model.ArtServiceJobInterface;
 import com.android.server.art.prereboot.PreRebootDriver;
+import com.android.server.art.prereboot.PreRebootStatsReporter;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -68,8 +69,8 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
     @NonNull private final BlockingQueue<Runnable> mWorkQueue = new LinkedBlockingQueue<>();
 
     /**
-     * Serializes mutations to the global state of Pre-reboot Dexopt, including mounts and staged
-     * files.
+     * Serializes mutations to the global state of Pre-reboot Dexopt, including mounts, staged
+     * files, and stats.
      */
     @NonNull
     private final ThreadPoolExecutor mSerializedExecutor =
@@ -141,6 +142,7 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
      */
     public @ScheduleStatus int onUpdateReady(@Nullable String otaSlot) {
         unschedule();
+        mSerializedExecutor.execute(() -> mInjector.getStatsReporter().reset());
         updateOtaSlot(otaSlot);
         return schedule();
     }
@@ -180,6 +182,7 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
         /* @JobScheduler.Result */ int result = mInjector.getJobScheduler().schedule(info);
         if (result == JobScheduler.RESULT_SUCCESS) {
             AsLog.i("Pre-reboot Dexopt Job scheduled");
+            mSerializedExecutor.execute(() -> mInjector.getStatsReporter().recordJobScheduled());
             return ArtFlags.SCHEDULE_SUCCESS;
         } else {
             AsLog.i("Failed to schedule Pre-reboot Dexopt Job");
@@ -212,8 +215,8 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
         mHasStarted = true;
         mRunningJob = new CompletableFuture().supplyAsync(() -> {
             try {
-                // TODO(b/336239721): Consume the result and report metrics.
-                mInjector.getPreRebootDriver().run(otaSlot, cancellationSignal);
+                mInjector.getPreRebootDriver().run(
+                        otaSlot, cancellationSignal, mInjector.getStatsReporter());
             } catch (RuntimeException e) {
                 AsLog.e("Fatal error", e);
             } finally {
@@ -276,9 +279,11 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
     @VisibleForTesting
     public static class Injector {
         @NonNull private final Context mContext;
+        @NonNull private final PreRebootStatsReporter mStatsReporter;
 
         Injector(@NonNull Context context) {
             mContext = context;
+            mStatsReporter = new PreRebootStatsReporter();
         }
 
         @NonNull
@@ -289,6 +294,11 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
         @NonNull
         public PreRebootDriver getPreRebootDriver() {
             return new PreRebootDriver(mContext);
+        }
+
+        @NonNull
+        public PreRebootStatsReporter getStatsReporter() {
+            return mStatsReporter;
         }
     }
 }

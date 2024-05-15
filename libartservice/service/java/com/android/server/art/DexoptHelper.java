@@ -147,15 +147,18 @@ public class DexoptHelper {
 
             if (progressCallback != null) {
                 CompletableFuture.runAsync(() -> {
-                    progressCallback.accept(
-                            OperationProgress.create(0 /* current */, futures.size()));
+                    progressCallback.accept(OperationProgress.create(
+                            0 /* current */, futures.size(), null /* packageDexoptResult */));
                 }, progressCallbackExecutor);
                 AtomicInteger current = new AtomicInteger(0);
                 for (CompletableFuture<PackageDexoptResult> future : futures) {
-                    future.thenRunAsync(() -> {
-                        progressCallback.accept(OperationProgress.create(
-                                current.incrementAndGet(), futures.size()));
-                    }, progressCallbackExecutor);
+                    future.thenAcceptAsync(result -> {
+                              progressCallback.accept(OperationProgress.create(
+                                      current.incrementAndGet(), futures.size(), result));
+                          }, progressCallbackExecutor).exceptionally(t -> {
+                        AsLog.e("Failed to update progress", t);
+                        return null;
+                    });
                 }
             }
 

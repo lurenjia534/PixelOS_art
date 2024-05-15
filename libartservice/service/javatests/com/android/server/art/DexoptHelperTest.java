@@ -76,6 +76,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -670,15 +671,26 @@ public class DexoptHelperTest {
 
         progressCallbackExecutor.runAll();
 
+        List<DexContainerFileDexoptResult> fileResults =
+                Stream.concat(mPrimaryResults.stream(), mSecondaryResults.stream())
+                        .collect(Collectors.toList());
+
         InOrder inOrder = inOrder(progressCallback);
         inOrder.verify(progressCallback)
-                .accept(eq(OperationProgress.create(0 /* current */, 3 /* total */)));
+                .accept(eq(OperationProgress.create(
+                        0 /* current */, 3 /* total */, null /* packageDexoptResult */)));
         inOrder.verify(progressCallback)
-                .accept(eq(OperationProgress.create(1 /* current */, 3 /* total */)));
+                .accept(eq(OperationProgress.create(1 /* current */, 3 /* total */,
+                        PackageDexoptResult.create(
+                                PKG_NAME_FOO, fileResults, null /* packageLevelStatus */))));
         inOrder.verify(progressCallback)
-                .accept(eq(OperationProgress.create(2 /* current */, 3 /* total */)));
+                .accept(eq(OperationProgress.create(2 /* current */, 3 /* total */,
+                        PackageDexoptResult.create(
+                                PKG_NAME_BAR, fileResults, null /* packageLevelStatus */))));
         inOrder.verify(progressCallback)
-                .accept(eq(OperationProgress.create(3 /* current */, 3 /* total */)));
+                .accept(eq(OperationProgress.create(3 /* current */, 3 /* total */,
+                        PackageDexoptResult.create(
+                                PKG_NAME_LIBBAZ, fileResults, null /* packageLevelStatus */))));
     }
 
     private AndroidPackage createPackage(boolean multiSplit) {

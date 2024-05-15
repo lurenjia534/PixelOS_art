@@ -1372,9 +1372,9 @@ ScopedAStatus Artd::getProfileSize(const ProfilePath& in_profile, int64_t* _aidl
   return ScopedAStatus::ok();
 }
 
-ScopedAStatus Artd::commitPreRebootStagedFiles(
-    const std::vector<ArtifactsPath>& in_artifacts,
-    const std::vector<WritableProfilePath>& in_profiles) {
+ScopedAStatus Artd::commitPreRebootStagedFiles(const std::vector<ArtifactsPath>& in_artifacts,
+                                               const std::vector<WritableProfilePath>& in_profiles,
+                                               bool* _aidl_return) {
   RETURN_FATAL_IF_PRE_REBOOT(options_);
 
   std::vector<std::pair<std::string, std::string>> files_to_move;
@@ -1424,6 +1424,7 @@ ScopedAStatus Artd::commitPreRebootStagedFiles(
     LOG(INFO) << ART_FORMAT("Committed Pre-reboot staged file '{}' to '{}'", src_path, dst_path);
   }
 
+  *_aidl_return = !files_to_move.empty();
   return ScopedAStatus::ok();
 }
 

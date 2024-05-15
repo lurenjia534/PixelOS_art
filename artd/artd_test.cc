@@ -2509,6 +2509,7 @@ TEST_F(ArtdTest, commitPreRebootStagedFiles) {
 
   CreateFile(android_data_ + "/misc/profiles/ref/com.android.bar/primary.prof", "old_prof_2");
 
+  bool aidl_return;
   ASSERT_STATUS_OK(artd_->commitPreRebootStagedFiles(
       {
           // Has all new files. All old files should be replaced.
@@ -2529,7 +2530,9 @@ TEST_F(ArtdTest, commitPreRebootStagedFiles) {
           PrimaryRefProfilePath{.packageName = "com.android.foo", .profileName = "primary"},
           // Has no new file.
           PrimaryRefProfilePath{.packageName = "com.android.bar", .profileName = "primary"},
-      }));
+      },
+      &aidl_return));
+  EXPECT_TRUE(aidl_return);
 
   CheckContent(android_data_ + "/dalvik-cache/arm64/system@app@Foo@Foo.apk@classes.dex",
                "new_odex_1");
@@ -2563,6 +2566,19 @@ TEST_F(ArtdTest, commitPreRebootStagedFiles) {
       std::filesystem::exists(android_data_ + "/app/com.android.foo/oat/arm64/base.vdex.staged"));
   EXPECT_FALSE(std::filesystem::exists(android_data_ +
                                        "/misc/profiles/ref/com.android.foo/primary.prof.staged"));
+}
+
+TEST_F(ArtdTest, commitPreRebootStagedFilesNoNewFile) {
+  bool aidl_return;
+  ASSERT_STATUS_OK(artd_->commitPreRebootStagedFiles(
+      {
+          ArtifactsPath{.dexPath = android_data_ + "/app/com.android.foo/base.apk",
+                        .isa = "arm",
+                        .isInDalvikCache = false},
+      },
+      {},
+      &aidl_return));
+  EXPECT_FALSE(aidl_return);
 }
 
 class ArtdPreRebootTest : public ArtdTest {

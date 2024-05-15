@@ -16,14 +16,21 @@
 
 package com.android.server.art.model;
 
+import static com.android.server.art.model.DexoptResult.PackageDexoptResult;
+
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SystemApi;
 
 import com.android.internal.annotations.Immutable;
 
 import com.google.auto.value.AutoValue;
 
-/** @hide */
+/**
+ * Represents the progress of an operation. Currently, this is only for batch dexopt.
+ *
+ * @hide
+ */
 @SystemApi(client = SystemApi.Client.SYSTEM_SERVER)
 @Immutable
 @AutoValue
@@ -32,8 +39,9 @@ public abstract class OperationProgress {
     protected OperationProgress() {}
 
     /** @hide */
-    public static @NonNull OperationProgress create(int current, int total) {
-        return new AutoValue_OperationProgress(current, total);
+    public static @NonNull OperationProgress create(
+            int current, int total, @Nullable PackageDexoptResult packageDexoptResult) {
+        return new AutoValue_OperationProgress(current, total, packageDexoptResult);
     }
 
     /** The overall progress, in the range of [0, 100]. */
@@ -59,4 +67,12 @@ public abstract class OperationProgress {
      * @hide
      */
     public abstract int getTotal();
+
+    /**
+     * The last package dexopt result, or null if {@link #getCurrent} returns 0. Only applicable if
+     * this class represents batch dexopt progress.
+     *
+     * @hide
+     */
+    public abstract @Nullable PackageDexoptResult getLastPackageDexoptResult();
 }

@@ -263,8 +263,10 @@ interface IArtd {
      * Not supported in Pre-reboot Dexopt mode.
      *
      * Throws fatal and non-fatal errors.
+     *
+     * @return true if any file has been committed.
      */
-    void commitPreRebootStagedFiles(
+    boolean commitPreRebootStagedFiles(
             in List<com.android.server.art.ArtifactsPath> artifacts,
             in List<com.android.server.art.ProfilePath.WritableProfilePath> profiles);
 
