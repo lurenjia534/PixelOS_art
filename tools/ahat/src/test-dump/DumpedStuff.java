@@ -19,6 +19,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import libcore.util.NativeAllocationRegistry;
+import android.graphics.Bitmap;
 
 // We take a heap dump that includes a single instance of this
 // DumpedStuff class. Objects stored as fields in this class can be easily
@@ -85,6 +86,9 @@ public class DumpedStuff extends SuperDumpedStuff {
     }
 
     gcPathArray[2].right.left = gcPathArray[2].left.right;
+
+    bitmapOne = new Bitmap(100, 200, 0xDEADBEEF, bigArray);
+    bitmapTwo = new Bitmap(100, 200, 0xBEEFDEAD, bigArray);
   }
 
   public static class ObjectTree {
@@ -179,6 +183,8 @@ public class DumpedStuff extends SuperDumpedStuff {
   public SoftReference aSoftReference = new SoftReference(new Object());
   public Reference reachabilityReferenceChain;
   public byte[] bigArray;
+  public Bitmap bitmapOne = null;
+  public Bitmap bitmapTwo = null;
   public ObjectTree[] gcPathArray = new ObjectTree[]{null, null,
     new ObjectTree(
         new ObjectTree(null, new ObjectTree(null, null)),

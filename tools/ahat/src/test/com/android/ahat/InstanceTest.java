@@ -19,6 +19,7 @@ package com.android.ahat;
 import com.android.ahat.heapdump.AhatClassObj;
 import com.android.ahat.heapdump.AhatHeap;
 import com.android.ahat.heapdump.AhatInstance;
+import com.android.ahat.heapdump.AhatBitmapInstance;
 import com.android.ahat.heapdump.AhatSnapshot;
 import com.android.ahat.heapdump.PathElement;
 import com.android.ahat.heapdump.Reachability;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.util.List;
 import org.junit.Test;
 
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -359,6 +361,7 @@ public class InstanceTest {
   public void objectNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.getDumpedAhatInstance("anObject");
+    assertFalse(obj.isBitmapInstance());
     assertNull(obj.asBitmapInstance());
   }
 
@@ -366,6 +369,7 @@ public class InstanceTest {
   public void arrayNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.getDumpedAhatInstance("gcPathArray");
+    assertFalse(obj.isBitmapInstance());
     assertNull(obj.asBitmapInstance());
   }
 
@@ -373,6 +377,7 @@ public class InstanceTest {
   public void classObjNotABitmap() throws IOException {
     TestDump dump = TestDump.getTestDump();
     AhatInstance obj = dump.findClass("Main");
+    assertFalse(obj.isBitmapInstance());
     assertNull(obj.asBitmapInstance());
   }
 
@@ -410,6 +415,36 @@ public class InstanceTest {
     AhatInstance obj = dump.getDumpedAhatInstance("bigArray");
     long id = obj.getId();
     assertEquals(String.format("byte[1000000]@%08x", id), obj.toString());
+  }
+
+  @Test
+  public void asBitmap() throws IOException {
+    TestDump dump = TestDump.getTestDump();
+    AhatInstance obj = dump.getDumpedAhatInstance("bitmapOne");
+    assertNotNull(obj);
+    assertTrue(obj.isBitmapInstance());
+    assertNotNull(obj.asBitmapInstance());
+
+    AhatBitmapInstance.Bitmap bmp = obj.asBitmapInstance().getBitmap();
+    assertNotNull(bmp);
+
+    // default compression format
+    assertEquals(bmp.format, "image/png");
+
+    // check buffer content - expect to be same as in bigArray
+    assertEquals(bmp.buffer.length, 1000000);
+    for (int i = 0; i < 1000000; i++) {
+      assertEquals(bmp.buffer[i], (byte)((i * i) & 0xFF));
+    }
+  }
+
+  @Test
+  public void duplicatedBitmaps() throws IOException {
+    TestDump dump = TestDump.getTestDump();
+    List<List<AhatBitmapInstance>> duplicates = dump.getAhatSnapshot().findDuplicateBitmaps();
+    // expect to have 1 list of 2 duplicated bitmaps
+    assertEquals(duplicates.size(), 1);
+    assertEquals(duplicates.get(0).size(), 2);
   }
 
   @Test

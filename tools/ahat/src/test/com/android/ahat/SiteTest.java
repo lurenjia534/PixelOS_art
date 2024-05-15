@@ -37,20 +37,20 @@ public class SiteTest {
     Site sKnownSite = oKnownSite.getSite();
     assertEquals("DumpedStuff.java", sKnownSite.getFilename());
     assertEquals("allocateObjectAtKnownSite", sKnownSite.getMethodName());
-    assertEquals(29, sKnownSite.getLineNumber());
+    assertEquals(30, sKnownSite.getLineNumber());
     assertSame(sKnownSite, snapshot.getSite(sKnownSite.getId()));
 
     AhatInstance oKnownSubSite = dump.getDumpedAhatInstance("objectAllocatedAtKnownSubSite");
     Site sKnownSubSite = oKnownSubSite.getSite();
     assertEquals("DumpedStuff.java", sKnownSubSite.getFilename());
     assertEquals("allocateObjectAtKnownSubSite", sKnownSubSite.getMethodName());
-    assertEquals(37, sKnownSubSite.getLineNumber());
+    assertEquals(38, sKnownSubSite.getLineNumber());
     assertSame(sKnownSubSite, snapshot.getSite(sKnownSubSite.getId()));
 
     Site sKnownSubSiteParent = sKnownSubSite.getParent();
     assertEquals("DumpedStuff.java", sKnownSubSiteParent.getFilename());
     assertEquals("allocateObjectAtKnownSite", sKnownSubSiteParent.getMethodName());
-    assertEquals(30, sKnownSubSiteParent.getLineNumber());
+    assertEquals(31, sKnownSubSiteParent.getLineNumber());
     assertSame(sKnownSubSiteParent, snapshot.getSite(sKnownSubSiteParent.getId()));
 
     assertNotSame(sKnownSite, sKnownSubSiteParent);
@@ -59,7 +59,7 @@ public class SiteTest {
     Site sKnownSiteParent = sKnownSite.getParent();
     assertEquals("DumpedStuff.java", sKnownSiteParent.getFilename());
     assertEquals("<init>", sKnownSiteParent.getMethodName());
-    assertEquals(45, sKnownSiteParent.getLineNumber());
+    assertEquals(46, sKnownSiteParent.getLineNumber());
     assertSame(sKnownSiteParent, snapshot.getSite(sKnownSiteParent.getId()));
 
     AhatInstance oObfSuperSite = dump.getDumpedAhatInstance("objectAllocatedAtObfSuperSite");
@@ -80,7 +80,7 @@ public class SiteTest {
     Site sOverriddenSite = oOverriddenSite.getSite();
     assertEquals("DumpedStuff.java", sOverriddenSite.getFilename());
     assertEquals("allocateObjectAtOverriddenSite", sOverriddenSite.getMethodName());
-    assertEquals(41, sOverriddenSite.getLineNumber());
+    assertEquals(42, sOverriddenSite.getLineNumber());
     assertSame(sOverriddenSite, snapshot.getSite(sOverriddenSite.getId()));
   }
 
