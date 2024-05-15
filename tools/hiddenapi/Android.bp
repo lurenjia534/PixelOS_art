@@ -41,7 +41,7 @@ cc_defaults {
     stl: "c++_static",
     static_libs: [
         "libbase",
-        "libcrypto",
+        "libcrypto_for_art",
     ],
 }
 

@@ -569,7 +569,6 @@ class ReleaseTargetChecker:
     self._checker.check_native_library('libandroidio')
 
     # Check internal native library dependencies.
-    self._checker.check_native_library('libcrypto')
     self._checker.check_native_library('libexpat')
 
 

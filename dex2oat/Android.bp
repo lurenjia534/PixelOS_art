@@ -77,10 +77,12 @@ art_cc_defaults {
     generated_sources: ["art_dex2oat_operator_srcs"],
     shared_libs: [
         "libbase",
-        "libcrypto", // For SHA-1 checksumming of build ID
         "liblog",
         "liblz4",
         "libz",
+    ],
+    static_libs: [
+        "libcrypto_for_art", // For SHA-1 checksumming of build ID
     ],
     export_include_dirs: ["."],
 }
@@ -89,7 +91,7 @@ cc_defaults {
     name: "libart-dex2oat_static_base_defaults",
     whole_static_libs: [
         "libbase",
-        "libcrypto",
+        "libcrypto_for_art",
         "liblog",
         "liblz4",
         "libz",
@@ -221,11 +223,13 @@ cc_defaults {
             shared_libs: [
                 "libartpalette",
                 "libbase",
-                "libcrypto",
                 "liblz4", // libart(d)-dex2oat dependency; must be repeated here since it's a static lib.
                 "liblog",
                 "libsigchain",
                 "libz",
+            ],
+            static_libs: [
+                "libcrypto_for_art",
             ],
         },
     },
@@ -500,7 +504,7 @@ art_cc_defaults {
         "liblog",
     ],
     static_libs: [
-        "libcrypto_static", // Must be statically linked in standalone tests
+        "libcrypto_for_art",
         "liblz4", // libart(d)-dex2oat dependency; must be repeated here since it's a static lib.
     ],
 }
