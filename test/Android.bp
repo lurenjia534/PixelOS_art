@@ -260,18 +260,11 @@ art_cc_defaults {
 
     header_libs: [
         "libnativeloader-headers",
-    ],
-    shared_libs: [
-        // `libart(d)` (`art/runtime/jni/java_vm_ext.cc`) and `libnativehelper`
-        // (`libnativehelper/JniInvocation.c`) define symbols with the same name
-        // (e.g. `JNI_GetDefaultJavaVMInitArgs`).
-        // `JavaVmExtTest#*` tests require `libart(d)` implementation of these symbols.
-        // At the moment `libart(d)` is linked statically (through `libart(d)-gtest`)
-        // and these symbols are correctly resolved to `libart(d)`.
-        // If `libnativehelper` and `libart(d)` are both linked dynamically,
-        // `libart(d)` must be specified in shared_libs list before `libnativehelper`,
-        // so that its symbols have precedence over `libnativehelper`.
-        "libnativehelper",
+        // The full libnativehelper library has wrappers for the JNI APIs (e.g.
+        // `JNI_CreateJavaVM`) that are implemented in libart(d), so it
+        // shouldn't be linked into the tests where libart(d) is linked
+        // statically.
+        "libnativehelper_header_only",
     ],
     target: {
         android: {
