@@ -1105,7 +1105,7 @@ public final class ArtManagerLocal {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private void commitPreRebootStagedFiles(
             @NonNull PackageManagerLocal.FilteredSnapshot snapshot, boolean forSecondary) {
-        try {
+        try (var pin = mInjector.createArtdPin()) {
             // Because we don't know for which packages the Pre-reboot Dexopt job has generated
             // staged files, we call artd for all dexoptable packages, which is a superset of the
             // packages that we actually expect to have staged files.
