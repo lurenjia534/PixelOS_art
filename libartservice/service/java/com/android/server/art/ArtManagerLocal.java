@@ -923,13 +923,7 @@ public final class ArtManagerLocal {
     @SuppressLint("UnflaggedApi") // Flag support for mainline is not available.
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     public void onApexStaged(@NonNull String[] stagedApexModuleNames) {
-        // TODO(b/311377497): Check system requirements.
-        mInjector.getPreRebootDexoptJob().unschedule();
-        // Although `unschedule` implies `cancel`, we explicitly call `cancel` here to wait for
-        // the job to exit, if it's running.
-        mInjector.getPreRebootDexoptJob().cancel(true /* blocking */);
-        mInjector.getPreRebootDexoptJob().updateOtaSlot(null);
-        mInjector.getPreRebootDexoptJob().schedule();
+        mInjector.getPreRebootDexoptJob().onUpdateReady(null /* otaSlot */);
     }
 
     /**

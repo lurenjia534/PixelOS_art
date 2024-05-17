@@ -35,12 +35,15 @@ import com.android.server.art.ArtModuleServiceInitializer;
 import com.android.server.art.AsLog;
 import com.android.server.art.GlobalInjector;
 import com.android.server.art.IDexoptChrootSetup;
+import com.android.server.art.PreRebootDexoptJob;
 import com.android.server.art.Utils;
 
 import dalvik.system.DelegateLastClassLoader;
 
 /**
  * Drives Pre-reboot Dexopt, through reflection.
+ *
+ * DO NOT use this class directly. Use {@link PreRebootDexoptJob}.
  *
  * During Pre-reboot Dexopt, the old version of this code is run.
  *

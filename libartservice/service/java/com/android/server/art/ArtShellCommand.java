@@ -183,10 +183,6 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
                 pw.println("Profiles cleared");
                 return 0;
             }
-            case "pre-reboot-dexopt": {
-                // TODO(b/311377497): Remove this command once the development is done.
-                return handlePreRebootDexopt(pw);
-            }
             case "on-ota-staged": {
                 return handleOnOtaStaged(pw);
             }
@@ -646,33 +642,6 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
         return 0;
     }
 
-    private int handlePreRebootDexopt(@NonNull PrintWriter pw) {
-        if (!SdkLevel.isAtLeastV()) {
-            pw.println("Error: Unsupported command 'pre-reboot-dexopt'");
-            return 1;
-        }
-
-        String otaSlot = null;
-
-        String opt = getNextOption();
-        if ("--slot".equals(opt)) {
-            otaSlot = getNextArgRequired();
-        } else if (opt != null) {
-            pw.println("Error: Unknown option: " + opt);
-            return 1;
-        }
-
-        try (var signal = new WithCancellationSignal(pw, true /* verbose */)) {
-            if (new PreRebootDriver(mContext).run(otaSlot, signal.get())) {
-                pw.println("Job finished. See logs for details");
-                return 0;
-            } else {
-                pw.println("Job failed. See logs for details");
-                return 1;
-            }
-        }
-    }
-
     private int handleOnOtaStaged(@NonNull PrintWriter pw) {
         if (!SdkLevel.isAtLeastV()) {
             pw.println("Error: Unsupported command 'on-ota-staged'");
@@ -708,12 +677,7 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
         // This operation requires the uid to be "system" (1000).
         long identityToken = Binder.clearCallingIdentity();
         try {
-            mArtManagerLocal.getPreRebootDexoptJob().unschedule();
-            // Although `unschedule` implies `cancel`, we explicitly call `cancel` here to wait for
-            // the job to exit, if it's running.
-            mArtManagerLocal.getPreRebootDexoptJob().cancel(true /* blocking */);
-            mArtManagerLocal.getPreRebootDexoptJob().updateOtaSlot(otaSlot);
-            code = mArtManagerLocal.getPreRebootDexoptJob().schedule();
+            code = mArtManagerLocal.getPreRebootDexoptJob().onUpdateReady(otaSlot);
         } finally {
             Binder.restoreCallingIdentity(identityToken);
         }
