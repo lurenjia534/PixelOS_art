@@ -118,6 +118,14 @@ public abstract class Dexopter<DexInfoType extends DetailedDexInfo> {
                     continue;
                 }
 
+                if (mInjector.isPreReboot() && !isDexFileFound(dexInfo)) {
+                    // In the pre-reboot case, it's possible that a dex file doesn't exist in the
+                    // new system image. Although code below can gracefully handle failures, those
+                    // failures can be red herrings in metrics and bug reports, so we skip
+                    // non-existing dex files to avoid them.
+                    continue;
+                }
+
                 DexMetadataInfo dmInfo =
                         mInjector.getDexMetadataHelper().getDexMetadataInfo(buildDmPath(dexInfo));
 
@@ -637,6 +645,11 @@ public abstract class Dexopter<DexInfoType extends DetailedDexInfo> {
      * (S_IROTH).
      */
     protected abstract boolean isDexFilePublic(@NonNull DexInfoType dexInfo);
+
+    /**
+     * Returns true if the dex file is found.
+     */
+    protected abstract boolean isDexFileFound(@NonNull DexInfoType dexInfo);
 
     /**
      * Returns a list of external profiles (e.g., a DM profile) that the reference profile can be

@@ -118,6 +118,17 @@ public class PrimaryDexopter extends Dexopter<DetailedPrimaryDexInfo> {
     }
 
     @Override
+    protected boolean isDexFileFound(@NonNull DetailedPrimaryDexInfo dexInfo) {
+        try {
+            return mInjector.getArtd().getDexFileVisibility(dexInfo.dexPath())
+                    != FileVisibility.NOT_FOUND;
+        } catch (ServiceSpecificException | RemoteException e) {
+            AsLog.e("Failed to get visibility of " + dexInfo.dexPath(), e);
+            return false;
+        }
+    }
+
+    @Override
     @NonNull
     protected List<ProfilePath> getExternalProfiles(@NonNull DetailedPrimaryDexInfo dexInfo) {
         return PrimaryDexUtils.getExternalProfiles(dexInfo);

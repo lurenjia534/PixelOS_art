@@ -87,6 +87,12 @@ public class SecondaryDexopter extends Dexopter<CheckedSecondaryDexInfo> {
     }
 
     @Override
+    protected boolean isDexFileFound(@NonNull CheckedSecondaryDexInfo dexInfo) {
+        // `getDexInfoList` has already excluded non-existing dex files.
+        return true;
+    }
+
+    @Override
     @NonNull
     protected List<ProfilePath> getExternalProfiles(@NonNull CheckedSecondaryDexInfo dexInfo) {
         // A secondary dex file doesn't have any external profile to use.

@@ -311,6 +311,15 @@ public class PrimaryDexopterParameterizedTest extends PrimaryDexopterTestBase {
                 .when(mDexMetadataHelperInjector.openZipFile(any()))
                 .thenThrow(NoSuchFileException.class);
 
+        if (mParams.mIsPreReboot) {
+            doReturn(FileVisibility.OTHER_READABLE)
+                    .when(mArtd)
+                    .getDexFileVisibility("/somewhere/app/foo/base.apk");
+            doReturn(FileVisibility.OTHER_READABLE)
+                    .when(mArtd)
+                    .getDexFileVisibility("/somewhere/app/foo/split_0.apk");
+        }
+
         // The first one is normal.
         doReturn(dexoptIsNeeded())
                 .when(mArtd)
