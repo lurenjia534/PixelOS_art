@@ -85,16 +85,6 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
     /** The slot that contains the OTA update, "_a" or "_b", or null for a Mainline update. */
     @GuardedBy("this") @Nullable private String mOtaSlot = null;
 
-    /**
-     * Whether the job has started at least once, meaning the device is expected to have staged
-     * files, no matter it succeed, failed, or cancelled.
-     *
-     * Note that this flag is not persisted across system server restarts. It's possible that the
-     * value is lost due to a system server restart caused by a crash, but this is a minor case, so
-     * we don't handle it here for simplicity.
-     */
-    @GuardedBy("this") private boolean mHasStarted = false;
-
     public PreRebootDexoptJob(@NonNull Context context) {
         this(new Injector(context));
     }
@@ -236,7 +226,7 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
 
         String otaSlot = mOtaSlot;
         var cancellationSignal = mCancellationSignal = new CancellationSignal();
-        mHasStarted = true;
+        markHasStarted();
         mRunningJob = new CompletableFuture().supplyAsync(() -> {
             try {
                 mInjector.getPreRebootDriver().run(
@@ -291,8 +281,18 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
         }
     }
 
-    public synchronized boolean hasStarted() {
-        return mHasStarted;
+    /**
+     * Whether the job has started at least once, meaning the device is expected to have staged
+     * files, no matter it succeed, failed, or cancelled.
+     *
+     * This flag is survives across system server restarts, but not device reboots.
+     */
+    public boolean hasStarted() {
+        return SystemProperties.getBoolean("dalvik.vm.pre-reboot.has-started", false /* def */);
+    }
+
+    private void markHasStarted() {
+        ArtJni.setProperty("dalvik.vm.pre-reboot.has-started", "true");
     }
 
     public void test() {

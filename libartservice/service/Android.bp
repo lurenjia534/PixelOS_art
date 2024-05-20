@@ -32,6 +32,7 @@ cc_defaults {
     ],
     export_include_dirs: ["native"],
     shared_libs: [
+        "liblog", // Used by "JNIHelp.h".
         "libnativehelper",
     ],
 }
