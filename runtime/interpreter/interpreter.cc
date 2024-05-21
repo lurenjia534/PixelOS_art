@@ -309,7 +309,6 @@ static inline JValue Execute(
                                  shadow_frame,
                                  ret,
                                  instrumentation,
-                                 accessor.InsSize(),
                                  /* unlock_monitors= */ false);
         return ret;
       }
@@ -324,7 +323,6 @@ static inline JValue Execute(
                                    shadow_frame,
                                    ret,
                                    instrumentation,
-                                   accessor.InsSize(),
                                    /* unlock_monitors= */ false);
         }
         return ret;

@@ -1542,6 +1542,26 @@ void UnlockHeldMonitors(Thread* self, ShadowFrame* shadow_frame)
   }
 }
 
+void PerformNonStandardReturn(Thread* self,
+                              ShadowFrame& frame,
+                              JValue& result,
+                              const instrumentation::Instrumentation* instrumentation,
+                              bool unlock_monitors) {
+  if (UNLIKELY(self->IsExceptionPending())) {
+    LOG(WARNING) << "Suppressing exception for non-standard method exit: "
+                 << self->GetException()->Dump();
+    self->ClearException();
+  }
+  if (unlock_monitors) {
+    UnlockHeldMonitors(self, &frame);
+    DoMonitorCheckOnExit(self, &frame);
+  }
+  result = JValue();
+  if (UNLIKELY(NeedsMethodExitEvent(instrumentation))) {
+    SendMethodExitEvents(self, instrumentation, frame, frame.GetMethod(), result);
+  }
+}
+
 // Explicit DoCall template function declarations.
 #define EXPLICIT_DO_CALL_TEMPLATE_DECL(_is_range)                      \
   template REQUIRES_SHARED(Locks::mutator_lock_)                       \

@@ -149,29 +149,11 @@ NeedsMethodExitEvent(const instrumentation::Instrumentation* ins)
 COLD_ATTR void UnlockHeldMonitors(Thread* self, ShadowFrame* shadow_frame)
     REQUIRES_SHARED(Locks::mutator_lock_);
 
-static inline ALWAYS_INLINE void PerformNonStandardReturn(
-      Thread* self,
-      ShadowFrame& frame,
-      JValue& result,
-      const instrumentation::Instrumentation* instrumentation,
-      uint16_t num_dex_inst,
-      bool unlock_monitors = true) REQUIRES_SHARED(Locks::mutator_lock_) {
-  ObjPtr<mirror::Object> thiz(frame.GetThisObject(num_dex_inst));
-  StackHandleScope<1u> hs(self);
-  if (UNLIKELY(self->IsExceptionPending())) {
-    LOG(WARNING) << "Suppressing exception for non-standard method exit: "
-                 << self->GetException()->Dump();
-    self->ClearException();
-  }
-  if (unlock_monitors) {
-    UnlockHeldMonitors(self, &frame);
-    DoMonitorCheckOnExit(self, &frame);
-  }
-  result = JValue();
-  if (UNLIKELY(NeedsMethodExitEvent(instrumentation))) {
-    SendMethodExitEvents(self, instrumentation, frame, frame.GetMethod(), result);
-  }
-}
+void PerformNonStandardReturn(Thread* self,
+                              ShadowFrame& frame,
+                              JValue& result,
+                              const instrumentation::Instrumentation* instrumentation,
+                              bool unlock_monitors = true) REQUIRES_SHARED(Locks::mutator_lock_);
 
 // Handles all invoke-XXX/range instructions except for invoke-polymorphic[/range].
 // Returns true on success, otherwise throws an exception and returns false.
