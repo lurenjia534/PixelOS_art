@@ -480,6 +480,7 @@ class HLoopOptimization : public HOptimization {
   bool CanRemoveCycle();  // Whether the current 'iset_' is removable.
 
   bool IsInPredicatedVectorizationMode() const { return predicated_vectorization_mode_; }
+  void MaybeInsertInVectorExternalSet(HInstruction* instruction);
 
   // Compiler options (to query ISA features).
   const CompilerOptions* compiler_options_;
@@ -547,6 +548,12 @@ class HLoopOptimization : public HOptimization {
   // Tracks vector operations that are inserted outside of the loop (preheader, exit)
   // as part of vectorization (e.g. replicate scalar for loop invariants and reduce ops
   // for loop reductions).
+  //
+  // The instructions in the set are live for the whole vectorization process of the current
+  // loop, not just during generation of a particular loop version (as the sets above).
+  //
+  // Currently the set is being only used in the predicated mode - for assigning governing
+  // predicates.
   ScopedArenaSet<HInstruction*>* vector_external_set_;
 
   // A mapping between a basic block of the original loop and its associated PredicateInfo.

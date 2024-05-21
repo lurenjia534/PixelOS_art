@@ -977,6 +977,39 @@ public class Main {
     return s0 + s1;
   }
 
+  // Regression test for the case, where a loop is vectorized in predicated mode, and there is
+  // a disambiguation scalar loop added. Make sure that the set, which records instructions
+  // inserted outside of new loops, is not reset until the full vectorization process has
+  // happened.
+  //
+  // Based on void android.util.Spline$MonotoneCubicSpline.<init>(float[], float[]).
+  //
+  /// CHECK-START-ARM64: void Main.$noinline$testExternalSetForLoopWithDisambiguation(int[], int[]) loop_optimization (after)
+  /// CHECK-IF:     hasIsaFeature("sve") and os.environ.get('ART_FORCE_TRY_PREDICATED_SIMD') == 'true'
+  //
+  ///     CHECK-DAG: <<Pred:j\d+>>    VecPredSetAll                          loop:none
+  ///     CHECK-DAG:                  VecReplicateScalar [{{i\d+}},<<Pred>>] loop:none
+  //
+  /// CHECK-ELSE:
+  //
+  ///     CHECK-DAG:                  VecReplicateScalar                     loop:none
+  //
+  /// CHECK-FI:
+  //
+  // Vector loop.
+  /// CHECK-DAG:       Phi                    loop:<<VectorLoop:B\d+>> outer_loop:none
+  /// CHECK-DAG:       VecLoad                loop:<<VectorLoop>>      outer_loop:none
+  //
+  // Backup scalar loop.
+  /// CHECK-DAG:       Phi                    loop:<<ScalarLoop:B\d+>> outer_loop:none
+  /// CHECK-DAG:       ArrayGet               loop:<<ScalarLoop>>      outer_loop:none
+  public static void $noinline$testExternalSetForLoopWithDisambiguation(int[] d, int[] m) {
+    m[0] = d[0];
+    for (int i = 1; i < m.length; i++) {
+      m[i] = (d[i - 1] + d[i]) * 53;
+    }
+  }
+
   public static final int ARRAY_SIZE = 512;
 
   private static byte[] createAndInitByteArray(int x) {
@@ -1252,6 +1285,17 @@ public class Main {
         byte[] b_a = createAndInitByteArray(1);
         byte[] b_b = createAndInitByteArray(2);
         expectEquals(1278, testSADAndDotProdCombined1(b_a, b_b));
+    }
+    {
+        int[] i_a = createAndInitIntArray(1);
+        int[] i_b = createAndInitIntArray(2);
+        $noinline$testExternalSetForLoopWithDisambiguation(i_a, i_b);
+
+        int sum = 0;
+        for (int i = 0; i < i_b.length; i++) {
+          sum += i_b[i];
+        }
+        expectEquals(-13839413, sum);
     }
 
     System.out.println("passed");
