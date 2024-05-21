@@ -86,14 +86,22 @@ ThreadPoolWorker::~ThreadPoolWorker() {
   CHECK_PTHREAD_CALL(pthread_join, (pthread_, nullptr), "thread pool worker shutdown");
 }
 
-void ThreadPoolWorker::SetPthreadPriority(int priority) {
+// Set the "nice" priority for tid (0 means self).
+static void SetPriorityForTid(pid_t tid, int priority) {
   CHECK_GE(priority, PRIO_MIN);
   CHECK_LE(priority, PRIO_MAX);
-#if defined(ART_TARGET_ANDROID)
-  int result = setpriority(PRIO_PROCESS, pthread_gettid_np(pthread_), priority);
+  int result = setpriority(PRIO_PROCESS, tid, priority);
   if (result != 0) {
+#if defined(ART_TARGET_ANDROID)
     PLOG(ERROR) << "Failed to setpriority to :" << priority;
+#endif
+    // Setpriority may fail on host due to ulimit issues.
   }
+}
+
+void ThreadPoolWorker::SetPthreadPriority(int priority) {
+#if defined(ART_TARGET_ANDROID)
+  SetPriorityForTid(pthread_gettid_np(pthread_), priority);
 #else
   UNUSED(priority);
 #endif
@@ -144,6 +152,10 @@ void* ThreadPoolWorker::Callback(void* arg) {
   // Do work until its time to shut down.
   worker->Run();
   runtime->DetachCurrentThread(/* should_run_callbacks= */ false);
+  // On zygote fork, we wait for this thread to exit completely. Set to highest Java priority
+  // to speed that up.
+  constexpr int kJavaMaxPrioNiceness = -8;
+  SetPriorityForTid(0 /* this thread */, kJavaMaxPrioNiceness);
   return nullptr;
 }
 
