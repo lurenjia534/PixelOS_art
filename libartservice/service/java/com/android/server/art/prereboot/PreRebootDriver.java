@@ -27,6 +27,8 @@ import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
+import android.system.ErrnoException;
+import android.system.Os;
 
 import androidx.annotation.RequiresApi;
 
@@ -40,6 +42,15 @@ import com.android.server.art.PreRebootDexoptJob;
 import com.android.server.art.Utils;
 
 import dalvik.system.DelegateLastClassLoader;
+
+import libcore.io.Streams;
+
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * Drives Pre-reboot Dexopt, through reflection.
@@ -80,7 +91,7 @@ public class PreRebootDriver {
             Utils.logArtdException(e);
         } catch (ServiceSpecificException e) {
             AsLog.e("Failed to set up chroot", e);
-        } catch (ReflectiveOperationException e) {
+        } catch (ReflectiveOperationException | IOException | ErrnoException e) {
             AsLog.e("Failed to run pre-reboot dexopt", e);
         } finally {
             tearDown();
@@ -97,11 +108,10 @@ public class PreRebootDriver {
 
     private void tearDown() {
         // In general, the teardown unmounts apexes and partitions, and open files can keep the
-        // mounts busy so that they cannot be unmounted. Therefore, two things can prevent the
-        // teardown from succeeding: a running Pre-reboot artd process and the new `service-art.jar`
-        // opened and mapped by system server. They are managed by the service manager and the
-        // runtime respectively. There aren't reliable APIs to kill the former or close the latter,
-        // so we have to do them by triggering GC and finalization, with sleep and retry mechanism.
+        // mounts busy so that they cannot be unmounted. Therefore, a running Pre-reboot artd
+        // process can prevent the teardown from succeeding. It's managed by the service manager,
+        // and there isn't a reliable API to kill it, so we have to kill it by triggering GC and
+        // finalization, with sleep and retry mechanism.
         for (int numRetries = 3; numRetries > 0;) {
             try {
                 Runtime.getRuntime().gc();
@@ -127,11 +137,21 @@ public class PreRebootDriver {
     }
 
     private void runFromChroot(@NonNull CancellationSignal cancellationSignal)
-            throws ReflectiveOperationException {
+            throws ReflectiveOperationException, IOException, ErrnoException {
         String chrootArtDir = CHROOT_DIR + "/apex/com.android.art";
         String dexPath = chrootArtDir + "/javalib/service-art.jar";
-        var classLoader =
-                new DelegateLastClassLoader(dexPath, this.getClass().getClassLoader() /* parent */);
+
+        // We load the dex file into the memory and close it. In this way, the classloader won't
+        // prevent unmounting even if it fails to unload.
+        ClassLoader classLoader;
+        FileDescriptor memfd = Os.memfd_create("in memory from " + dexPath, 0 /* flags */);
+        try (FileOutputStream out = new FileOutputStream(memfd);
+                InputStream in = new FileInputStream(dexPath)) {
+            Streams.copy(in, out);
+            classLoader = new DelegateLastClassLoader("/proc/self/fd/" + memfd.getInt$(),
+                    this.getClass().getClassLoader() /* parent */);
+        }
+
         Class<?> preRebootManagerClass =
                 classLoader.loadClass("com.android.server.art.prereboot.PreRebootManager");
         // Check if the dex file is loaded successfully. Note that the constructor of
