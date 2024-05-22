@@ -1839,13 +1839,14 @@ void CodeGeneratorX86_64::GenerateFrameEntry() {
     __ movl(CpuRegister(TMP),
             Address(CpuRegister(kMethodRegisterArgument),
                     ArtMethod::DeclaringClassOffset().Int32Value()));
-    __ cmpb(Address(CpuRegister(TMP),  status_byte_offset),
-            Immediate(shifted_visibly_initialized_value));
+    __ cmpb(Address(CpuRegister(TMP), kClassStatusByteOffset),
+            Immediate(kShiftedVisiblyInitializedValue));
     __ j(kAboveEqual, &frame_entry_label_);
 
     // Check if we're initializing and the thread initializing is the one
     // executing the code.
-    __ cmpb(Address(CpuRegister(TMP),  status_byte_offset), Immediate(shifted_initializing_value));
+    __ cmpb(Address(CpuRegister(TMP), kClassStatusByteOffset),
+            Immediate(kShiftedInitializingValue));
     __ j(kBelow, &resolution);
 
     __ movl(CpuRegister(TMP),
@@ -6596,7 +6597,7 @@ void ParallelMoveResolverX86_64::RestoreScratch(int reg) {
 
 void InstructionCodeGeneratorX86_64::GenerateClassInitializationCheck(
     SlowPathCode* slow_path, CpuRegister class_reg) {
-  __ cmpb(Address(class_reg,  status_byte_offset), Immediate(shifted_visibly_initialized_value));
+  __ cmpb(Address(class_reg, kClassStatusByteOffset), Immediate(kShiftedVisiblyInitializedValue));
   __ j(kBelow, slow_path->GetEntryLabel());
   __ Bind(slow_path->GetExitLabel());
 }

@@ -59,15 +59,15 @@ static int32_t constexpr kPrimIntMax = 0x7fffffff;
 // Maximum value for a primitive long.
 static int64_t constexpr kPrimLongMax = INT64_C(0x7fffffffffffffff);
 
-constexpr size_t status_lsb_position = SubtypeCheckBits::BitStructSizeOf();
-constexpr size_t status_byte_offset =
-    mirror::Class::StatusOffset().SizeValue() + (status_lsb_position / kBitsPerByte);
-constexpr uint32_t shifted_visibly_initialized_value =
-    enum_cast<uint32_t>(ClassStatus::kVisiblyInitialized) << (status_lsb_position % kBitsPerByte);
-constexpr uint32_t shifted_initializing_value =
-    enum_cast<uint32_t>(ClassStatus::kInitializing) << (status_lsb_position % kBitsPerByte);
-constexpr uint32_t shifted_initialized_value =
-    enum_cast<uint32_t>(ClassStatus::kInitialized) << (status_lsb_position % kBitsPerByte);
+constexpr size_t kClassStatusLsbPosition = SubtypeCheckBits::BitStructSizeOf();
+constexpr size_t kClassStatusByteOffset =
+    mirror::Class::StatusOffset().SizeValue() + (kClassStatusLsbPosition / kBitsPerByte);
+constexpr uint32_t kShiftedVisiblyInitializedValue = enum_cast<uint32_t>(
+    ClassStatus::kVisiblyInitialized) << (kClassStatusLsbPosition % kBitsPerByte);
+constexpr uint32_t kShiftedInitializingValue =
+    enum_cast<uint32_t>(ClassStatus::kInitializing) << (kClassStatusLsbPosition % kBitsPerByte);
+constexpr uint32_t kShiftedInitializedValue =
+    enum_cast<uint32_t>(ClassStatus::kInitialized) << (kClassStatusLsbPosition % kBitsPerByte);
 
 class Assembler;
 class CodeGenerationData;

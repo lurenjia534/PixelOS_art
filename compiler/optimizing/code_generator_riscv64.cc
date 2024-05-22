@@ -137,8 +137,8 @@ static RegisterSet OneRegInReferenceOutSaveEverythingCallerSaves() {
 template <ClassStatus kStatus>
 static constexpr int64_t ShiftedSignExtendedClassStatusValue() {
   // This is used only for status values that have the highest bit set.
-  static_assert(CLZ(enum_cast<uint32_t>(kStatus)) == status_lsb_position);
-  constexpr uint32_t kShiftedStatusValue = enum_cast<uint32_t>(kStatus) << status_lsb_position;
+  static_assert(CLZ(enum_cast<uint32_t>(kStatus)) == kClassStatusLsbPosition);
+  constexpr uint32_t kShiftedStatusValue = enum_cast<uint32_t>(kStatus) << kClassStatusLsbPosition;
   static_assert(kShiftedStatusValue >= 0x80000000u);
   return static_cast<int64_t>(kShiftedStatusValue) - (INT64_C(1) << 32);
 }

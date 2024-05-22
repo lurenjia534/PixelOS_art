@@ -1390,17 +1390,18 @@ void CodeGeneratorX86::GenerateFrameEntry() {
     NearLabel continue_execution, resolution;
     // We'll use EBP as temporary.
     __ pushl(EBP);
+    __ cfi().AdjustCFAOffset(4);
     // Check if we're visibly initialized.
 
     // We don't emit a read barrier here to save on code size. We rely on the
     // resolution trampoline to do a suspend check before re-entering this code.
     __ movl(EBP, Address(kMethodRegisterArgument, ArtMethod::DeclaringClassOffset().Int32Value()));
-    __ cmpb(Address(EBP,  status_byte_offset), Immediate(shifted_visibly_initialized_value));
+    __ cmpb(Address(EBP, kClassStatusByteOffset), Immediate(kShiftedVisiblyInitializedValue));
     __ j(kAboveEqual, &continue_execution);
 
     // Check if we're initializing and the thread initializing is the one
     // executing the code.
-    __ cmpb(Address(EBP,  status_byte_offset), Immediate(shifted_initializing_value));
+    __ cmpb(Address(EBP, kClassStatusByteOffset), Immediate(kShiftedInitializingValue));
     __ j(kBelow, &resolution);
 
     __ movl(EBP, Address(EBP, mirror::Class::ClinitThreadIdOffset().Int32Value()));
@@ -1409,13 +1410,16 @@ void CodeGeneratorX86::GenerateFrameEntry() {
     __ Bind(&resolution);
 
     __ popl(EBP);
+    __ cfi().AdjustCFAOffset(-4);
     // Jump to the resolution stub.
     ThreadOffset32 entrypoint_offset =
         GetThreadOffset<kX86PointerSize>(kQuickQuickResolutionTrampoline);
     __ fs()->jmp(Address::Absolute(entrypoint_offset));
 
     __ Bind(&continue_execution);
+    __ cfi().AdjustCFAOffset(4);  // Undo the `-4` adjustment above. We get here with EBP pushed.
     __ popl(EBP);
+    __ cfi().AdjustCFAOffset(-4);
   }
 
   __ Bind(&frame_entry_label_);
@@ -7510,7 +7514,7 @@ void InstructionCodeGeneratorX86::VisitClinitCheck(HClinitCheck* check) {
 
 void InstructionCodeGeneratorX86::GenerateClassInitializationCheck(
     SlowPathCode* slow_path, Register class_reg) {
-  __ cmpb(Address(class_reg,  status_byte_offset), Immediate(shifted_visibly_initialized_value));
+  __ cmpb(Address(class_reg, kClassStatusByteOffset), Immediate(kShiftedVisiblyInitializedValue));
   __ j(kBelow, slow_path->GetEntryLabel());
   __ Bind(slow_path->GetExitLabel());
 }

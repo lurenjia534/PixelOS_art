@@ -135,8 +135,8 @@ bool CompilerOptions::IsImageClass(const char* descriptor) const {
   return image_classes_.find(std::string_view(descriptor)) != image_classes_.end();
 }
 
-bool CompilerOptions::IsPreloadedClass(const char* pretty_descriptor) const {
-  return preloaded_classes_.find(std::string_view(pretty_descriptor)) != preloaded_classes_.end();
+bool CompilerOptions::IsPreloadedClass(std::string_view pretty_descriptor) const {
+  return preloaded_classes_.find(pretty_descriptor) != preloaded_classes_.end();
 }
 
 bool CompilerOptions::ShouldCompileWithClinitCheck(ArtMethod* method) const {

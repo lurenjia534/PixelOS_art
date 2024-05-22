@@ -292,7 +292,7 @@ class CompilerOptions final {
 
   // Returns whether the given `pretty_descriptor` is in the list of preloaded
   // classes. `pretty_descriptor` should be the result of calling `PrettyDescriptor`.
-  EXPORT bool IsPreloadedClass(const char* pretty_descriptor) const;
+  EXPORT bool IsPreloadedClass(std::string_view pretty_descriptor) const;
 
   bool ParseCompilerOptions(const std::vector<std::string>& options,
                             bool ignore_unrecognized,
