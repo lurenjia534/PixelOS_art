@@ -1422,6 +1422,9 @@
       "name": "art_standalone_sigchain_tests[com.google.android.art.apex]"
     },
     {
+      "name": "libnativebridge-tests[com.google.android.art.apex]"
+    },
+    {
       "name": "libnativeloader_e2e_tests[com.google.android.art.apex]"
     },
     {
@@ -2858,6 +2861,9 @@
       "name": "art_standalone_sigchain_tests"
     },
     {
+      "name": "libnativebridge-tests"
+    },
+    {
       "name": "libnativeloader_e2e_tests"
     },
     {
@@ -4288,6 +4294,9 @@
       "name": "art_standalone_sigchain_tests"
     },
     {
+      "name": "libnativebridge-tests"
+    },
+    {
       "name": "libnativeloader_e2e_tests"
     },
     {
@@ -4305,9 +4314,6 @@
     },
     {
       "name": "art-run-test-2273-checker-unreachable-intrinsics"
-    },
-    {
-      "name": "libnativebridge-tests"
     }
   ]
 }
