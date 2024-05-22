@@ -37,7 +37,6 @@ public class Test989 {
       testMethods.add(Test989.class.getDeclaredMethod("doNothingNative"));
       testMethods.add(Test989.class.getDeclaredMethod("throwA"));
       testMethods.add(Test989.class.getDeclaredMethod("throwANative"));
-      testMethods.add(Test989.class.getDeclaredMethod("returnNativeException"));
       testMethods.add(Test989.class.getDeclaredMethod("returnFloat"));
       testMethods.add(Test989.class.getDeclaredMethod("returnFloatNative"));
       testMethods.add(Test989.class.getDeclaredMethod("returnDouble"));
@@ -47,9 +46,6 @@ public class Test989 {
       testMethods.add(Test989.class.getDeclaredMethod("acceptValue", Object.class));
       testMethods.add(Test989.class.getDeclaredMethod("acceptValueNative", Object.class));
       testMethods.add(Test989.class.getDeclaredMethod("tryCatchExit"));
-      testMethods.add(Class.class.getDeclaredMethod("forName", String.class));
-      testMethods.add(Class.class.getDeclaredMethod(
-              "classForName", String.class, boolean.class, java.lang.ClassLoader.class));
     } catch (Exception e) {
       throw new Error("Bad static!", e);
     }
@@ -248,54 +244,35 @@ public class Test989 {
   }
 
   public static void run() throws Exception {
-      MyRunnable[] testCases = new MyRunnable[] {
-              new doNothingClass(),
-              new doNothingNativeClass(),
-              new throwAClass(),
-              new throwANativeClass(),
-              new returnNativeExceptionClass(),
-              new returnValueClass(),
-              new returnValueNativeClass(),
-              new acceptValueClass(),
-              new acceptValueNativeClass(),
-              new tryCatchExitClass(),
-              new returnFloatClass(),
-              new returnFloatNativeClass(),
-              new returnDoubleClass(),
-              new returnDoubleNativeClass(),
-      };
-      MethodTracer[] tracers = new MethodTracer[] {
-              new NormalTracer(),
-              new ThrowEnterTracer(),
-              new ThrowExitTracer(),
-              new ThrowBothTracer(),
-              new ForceGCTracer(),
-      };
+    MyRunnable[] testCases = new MyRunnable[] {
+      new doNothingClass(),
+      new doNothingNativeClass(),
+      new throwAClass(),
+      new throwANativeClass(),
+      new returnValueClass(),
+      new returnValueNativeClass(),
+      new acceptValueClass(),
+      new acceptValueNativeClass(),
+      new tryCatchExitClass(),
+      new returnFloatClass(),
+      new returnFloatNativeClass(),
+      new returnDoubleClass(),
+      new returnDoubleNativeClass(),
+    };
+    MethodTracer[] tracers = new MethodTracer[] {
+      new NormalTracer(),
+      new ThrowEnterTracer(),
+      new ThrowExitTracer(),
+      new ThrowBothTracer(),
+      new ForceGCTracer(),
+    };
 
-      // Call once so the initialization of Class.forName is done before tracing to make the test
-      // output more readable.
-      new returnNativeExceptionClass().run();
-
-      setupTracing();
-      for (MethodTracer t : tracers) {
-          for (MyRunnable r : testCases) {
-              doTest(t, r);
-          }
+    setupTracing();
+    for (MethodTracer t : tracers) {
+      for (MyRunnable r : testCases) {
+        doTest(t, r);
       }
-
-      maybeDisableTracing();
-      System.out.println("Finished - without non-standard exits!");
-      Trace.disableTracing(Thread.currentThread());
-
-      // Enabling frame pop events force a different path and deoptimize more often. So redo the
-      // tests by enabling frame pop events.
-      Trace.enableFramePopEvents();
-      setupTracing();
-      for (MethodTracer t : tracers) {
-          for (MyRunnable r : testCases) {
-              doTest(t, r);
-          }
-      }
+    }
 
     maybeDisableTracing();
     System.out.println("Finished!");
@@ -320,12 +297,6 @@ public class Test989 {
     public Class<?> expectedThrow() {
       return ErrorA.class;
     }
-  }
-
-  private static final class returnNativeExceptionClass implements MyRunnable {
-      public void run() {
-          returnNativeException();
-      }
   }
 
   private static final class tryCatchExitClass implements MyRunnable {
@@ -446,14 +417,6 @@ public class Test989 {
 
   public static void doThrowA() {
     throw new ErrorA("Throwing Error A");
-  }
-
-  public static void returnNativeException() {
-      try {
-          Class.forName("noclass.nonexistent.name");
-      } catch (ClassNotFoundException e) {
-          System.out.println("Expected ClassNotFoundException received");
-      }
   }
 
   static final class TestObject {

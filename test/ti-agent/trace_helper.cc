@@ -466,15 +466,6 @@ extern "C" JNIEXPORT void JNICALL Java_art_Trace_watchFieldAccess(
   env->DeleteLocalRef(klass);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_art_Trace_nativeEnableFramePopEvents(JNIEnv* env) {
-  jvmtiCapabilities caps;
-  memset(&caps, 0, sizeof(caps));
-  caps.can_pop_frame = 1;
-  if (JvmtiErrorToException(env, jvmti_env, jvmti_env->AddCapabilities(&caps))) {
-    return;
-  }
-}
-
 extern "C" JNIEXPORT void JNICALL Java_art_Trace_enableTracing2(
     JNIEnv* env,
     [[maybe_unused]] jclass trace,
