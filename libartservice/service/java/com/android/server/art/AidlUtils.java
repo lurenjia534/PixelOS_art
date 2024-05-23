@@ -53,6 +53,14 @@ public final class AidlUtils {
     }
 
     @NonNull
+    public static ArtifactsPath buildArtifactsPathAsInputPreReboot(
+            @NonNull String dexPath, @NonNull String isa, boolean isInDalvikCache) {
+        // Normally this should not be called, unless the caller really means to use Pre-reboot
+        // artifacts as inputs.
+        return buildArtifactsPath(dexPath, isa, isInDalvikCache, true /* isPreReboot */);
+    }
+
+    @NonNull
     public static FsPermission buildFsPermission(
             int uid, int gid, boolean isOtherReadable, boolean isOtherExecutable) {
         var fsPermission = new FsPermission();

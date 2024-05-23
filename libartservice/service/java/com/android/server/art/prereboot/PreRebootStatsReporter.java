@@ -172,11 +172,18 @@ public class PreRebootStatsReporter {
         }
 
         List<JobRun> jobRuns = mStatsBuilder.getJobRunsList();
-        // Only take the duration of the last run because every run starts from scratch.
-        JobRun lastRun = jobRuns.size() > 0 ? jobRuns.get(jobRuns.size() - 1) : null;
-        long jobDurationMs = (lastRun != null && lastRun.getJobEndedTimestampMillis() > 0)
-                ? (lastRun.getJobEndedTimestampMillis() - lastRun.getJobStartedTimestampMillis())
-                : -1;
+        // The total duration of all runs, or -1 if any run didn't end.
+        long jobDurationMs = 0;
+        for (JobRun run : jobRuns) {
+            if (run.getJobEndedTimestampMillis() == 0) {
+                jobDurationMs = -1;
+                break;
+            }
+            jobDurationMs += run.getJobEndedTimestampMillis() - run.getJobStartedTimestampMillis();
+        }
+        if (jobRuns.size() == 0) {
+            jobDurationMs = -1;
+        }
         long jobLatencyMs =
                 (jobRuns.size() > 0 && mStatsBuilder.getJobScheduledTimestampMillis() > 0)
                 ? (jobRuns.get(0).getJobStartedTimestampMillis()

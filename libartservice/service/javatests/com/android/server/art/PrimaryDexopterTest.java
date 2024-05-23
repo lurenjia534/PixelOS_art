@@ -127,6 +127,9 @@ public class PrimaryDexopterTest extends PrimaryDexopterTestBase {
                 .when(mDexMetadataHelperInjector.openZipFile(any()))
                 .thenThrow(NoSuchFileException.class);
 
+        // By default, no artifacts exist.
+        lenient().when(mArtd.getArtifactsVisibility(any())).thenReturn(FileVisibility.NOT_FOUND);
+
         // Dexopt is by default needed and successful.
         lenient()
                 .when(mArtd.getDexoptNeeded(any(), any(), any(), any(), anyInt()))
@@ -885,6 +888,65 @@ public class PrimaryDexopterTest extends PrimaryDexopterTestBase {
         assertThat(results.get(0).getAbi()).isEqualTo("arm64-v8a");
         assertThat(results.get(1).getDexContainerFile()).isEqualTo(mDexPath);
         assertThat(results.get(1).getAbi()).isEqualTo("armeabi-v7a");
+    }
+
+    @Test
+    public void testDexoptPreRebootArtifactsExist() throws Exception {
+        when(mInjector.isPreReboot()).thenReturn(true);
+
+        when(mArtd.getArtifactsVisibility(deepEq(AidlUtils.buildArtifactsPathAsInputPreReboot(
+                     mDexPath, "arm", false /* isInDalvikCache */))))
+                .thenReturn(FileVisibility.OTHER_READABLE);
+
+        mPrimaryDexopter =
+                new PrimaryDexopter(mInjector, mPkgState, mPkg, mDexoptParams, mCancellationSignal);
+
+        List<DexContainerFileDexoptResult> results = mPrimaryDexopter.dexopt();
+        // Only the one at index 1 is skipped.
+        assertThat(results).hasSize(4);
+        assertThat(results.get(0).getDexContainerFile()).isEqualTo(mDexPath);
+        assertThat(results.get(0).getAbi()).isEqualTo("arm64-v8a");
+        assertThat(results.get(0).getStatus()).isEqualTo(DexoptResult.DEXOPT_PERFORMED);
+        assertThat(results.get(0).getExtendedStatusFlags()
+                & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST)
+                .isEqualTo(0);
+        assertThat(results.get(1).getDexContainerFile()).isEqualTo(mDexPath);
+        assertThat(results.get(1).getAbi()).isEqualTo("armeabi-v7a");
+        assertThat(results.get(1).getStatus()).isEqualTo(DexoptResult.DEXOPT_SKIPPED);
+        assertThat(results.get(1).getExtendedStatusFlags()
+                & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST)
+                .isNotEqualTo(0);
+        assertThat(results.get(2).getDexContainerFile()).isEqualTo(mSplit0DexPath);
+        assertThat(results.get(2).getAbi()).isEqualTo("arm64-v8a");
+        assertThat(results.get(2).getStatus()).isEqualTo(DexoptResult.DEXOPT_PERFORMED);
+        assertThat(results.get(2).getExtendedStatusFlags()
+                & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST)
+                .isEqualTo(0);
+        assertThat(results.get(3).getDexContainerFile()).isEqualTo(mSplit0DexPath);
+        assertThat(results.get(3).getAbi()).isEqualTo("armeabi-v7a");
+        assertThat(results.get(3).getStatus()).isEqualTo(DexoptResult.DEXOPT_PERFORMED);
+        assertThat(results.get(3).getExtendedStatusFlags()
+                & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST)
+                .isEqualTo(0);
+    }
+
+    @Test
+    public void testDexoptNotAffectedByPreRebootArtifacts() throws Exception {
+        // Same setup as above, but `isPreReboot` is false.
+        lenient()
+                .when(mArtd.getArtifactsVisibility(
+                        deepEq(AidlUtils.buildArtifactsPathAsInputPreReboot(
+                                mDexPath, "arm", false /* isInDalvikCache */))))
+                .thenReturn(FileVisibility.OTHER_READABLE);
+
+        mPrimaryDexopter =
+                new PrimaryDexopter(mInjector, mPkgState, mPkg, mDexoptParams, mCancellationSignal);
+
+        List<DexContainerFileDexoptResult> results = mPrimaryDexopter.dexopt();
+        assertThat(results).hasSize(4);
+        for (DexContainerFileDexoptResult result : results) {
+            assertThat(result.getStatus()).isEqualTo(DexoptResult.DEXOPT_PERFORMED);
+        }
     }
 
     private void checkDexoptWithProfile(IArtd artd, String dexPath, String isa, ProfilePath profile,

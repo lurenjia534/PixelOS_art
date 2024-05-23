@@ -252,6 +252,9 @@ public class PrimaryDexopterParameterizedTest extends PrimaryDexopterTestBase {
 
         lenient().when(mArtd.isInDalvikCache(any())).thenReturn(mParams.mIsInDalvikCache);
 
+        // By default, no artifacts exist.
+        lenient().when(mArtd.getArtifactsVisibility(any())).thenReturn(FileVisibility.NOT_FOUND);
+
         if (mParams.mCallbackReturnedCompilerFilter != null) {
             mConfig.setAdjustCompilerFilterCallback(
                     Runnable::run, (packageName, originalCompilerFilter, reason) -> {

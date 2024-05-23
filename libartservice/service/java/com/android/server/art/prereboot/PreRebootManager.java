@@ -82,7 +82,11 @@ public class PreRebootManager implements PreRebootManagerInterface {
                 }
                 switch (result.getStatus()) {
                     case DexoptResult.DEXOPT_SKIPPED:
-                        values.set(0, values.get(0) + 1);
+                        if (hasExistingArtifacts(result)) {
+                            values.set(1, values.get(1) + 1);
+                        } else {
+                            values.set(0, values.get(0) + 1);
+                        }
                         break;
                     case DexoptResult.DEXOPT_PERFORMED:
                         values.set(1, values.get(1) + 1);
@@ -125,5 +129,12 @@ public class PreRebootManager implements PreRebootManagerInterface {
                 AsLog.wtf("Interrupted", e);
             }
         }
+    }
+
+    private boolean hasExistingArtifacts(@NonNull PackageDexoptResult result) {
+        return result.getDexContainerFileDexoptResults().stream().anyMatch(fileResult
+                -> (fileResult.getExtendedStatusFlags()
+                           & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST)
+                        != 0);
     }
 }

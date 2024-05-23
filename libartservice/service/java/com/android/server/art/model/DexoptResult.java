@@ -75,6 +75,13 @@ public abstract class DexoptResult {
      */
     public static final int EXTENDED_SKIPPED_NO_DEX_CODE = 1 << 1;
     /**
+     * Dexopt is skipped because this operation is for Pre-reboot and the Pre-reboot artifacts
+     * already exist.
+     *
+     * @hide
+     */
+    public static final int EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST = 1 << 3;
+    /**
      * Dexopt encountered errors when processing the profiles that are external to the device,
      * including the profile in the DM file and the profile embedded in the dex container file.
      * Details of the errors can be found in {@link
@@ -90,6 +97,7 @@ public abstract class DexoptResult {
     @IntDef(flag = true, prefix = {"EXTENDED_"}, value = {
         EXTENDED_SKIPPED_STORAGE_LOW,
         EXTENDED_SKIPPED_NO_DEX_CODE,
+        EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST,
         EXTENDED_BAD_EXTERNAL_PROFILE,
     })
     // clang-format on
@@ -179,6 +187,9 @@ public abstract class DexoptResult {
         }
         if ((flags & DexoptResult.EXTENDED_SKIPPED_NO_DEX_CODE) != 0) {
             strs.add("EXTENDED_SKIPPED_NO_DEX_CODE");
+        }
+        if ((flags & DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST) != 0) {
+            strs.add("EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST");
         }
         if ((flags & DexoptResult.EXTENDED_BAD_EXTERNAL_PROFILE) != 0) {
             strs.add("EXTENDED_BAD_EXTERNAL_PROFILE");

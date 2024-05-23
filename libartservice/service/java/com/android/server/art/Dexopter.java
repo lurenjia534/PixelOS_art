@@ -208,6 +208,27 @@ public abstract class Dexopter<DexInfoType extends DetailedDexInfo> {
                                               .setNeedsToBePublic(needsToBeShared)
                                               .build();
 
+                        if (mInjector.isPreReboot()) {
+                            ArtifactsPath existingArtifacts =
+                                    AidlUtils.buildArtifactsPathAsInputPreReboot(
+                                            target.dexInfo().dexPath(), target.isa(),
+                                            target.isInDalvikCache());
+                            if (mInjector.getArtd().getArtifactsVisibility(existingArtifacts)
+                                    != FileVisibility.NOT_FOUND) {
+                                // Because `getDexoptNeeded` doesn't check Pre-reboot artifacts, we
+                                // do a simple check here to handle job resuming. If the Pre-reboot
+                                // artifacts exist, we assume they are up-to-date because
+                                // `PreRebootDexoptJob` would otherwise clean them up, so we skip
+                                // this dex file. The profile and the dex file may have been changed
+                                // since the last cancelled job run, but we don't handle such cases
+                                // because we are supposed to dexopt every dex file only once for
+                                // each ISA.
+                                extendedStatusFlags |=
+                                        DexoptResult.EXTENDED_SKIPPED_PRE_REBOOT_ALREADY_EXIST;
+                                continue;
+                            }
+                        }
+
                         GetDexoptNeededResult getDexoptNeededResult =
                                 getDexoptNeeded(target, options);
 

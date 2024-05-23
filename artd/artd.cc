@@ -789,7 +789,7 @@ ndk::ScopedAStatus Artd::getProfileVisibility(const ProfilePath& in_profile,
 
 ndk::ScopedAStatus Artd::getArtifactsVisibility(const ArtifactsPath& in_artifactsPath,
                                                 FileVisibility* _aidl_return) {
-  RETURN_FATAL_IF_ARG_IS_PRE_REBOOT(in_artifactsPath, "artifactsPath");
+  // `in_artifactsPath` can be either a Pre-reboot path or an ordinary one.
   std::string oat_path = OR_RETURN_FATAL(BuildArtifactsPath(in_artifactsPath)).oat_path;
   *_aidl_return = OR_RETURN_NON_FATAL(GetFileVisibility(oat_path));
   return ScopedAStatus::ok();
