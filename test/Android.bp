@@ -956,6 +956,7 @@ cc_defaults {
         "720-thread-priority/thread_priority.cc",
         "800-smali/jni.cc",
         "817-hiddenapi/test_native.cc",
+        "855-native/throws_exception.cc",
         "909-attach-agent/disallow_debugging.cc",
         "993-breakpoints-non-debuggable/native_attach_agent.cc",
         "1001-app-image-regions/app_image_regions.cc",

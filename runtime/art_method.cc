@@ -660,10 +660,12 @@ const OatQuickMethodHeader* ArtMethod::GetOatQuickMethodHeader(uintptr_t pc) {
           << ", jit= " << jit;
     }
     // We are running the GenericJNI stub. The entrypoint may point
-    // to different entrypoints or to a JIT-compiled JNI stub.
+    // to different entrypoints, to a JIT-compiled JNI stub, or to a shared boot
+    // image stub.
     DCHECK(class_linker->IsQuickGenericJniStub(existing_entry_point) ||
            class_linker->IsQuickResolutionStub(existing_entry_point) ||
-           (jit != nullptr && jit->GetCodeCache()->ContainsPc(existing_entry_point)))
+           (jit != nullptr && jit->GetCodeCache()->ContainsPc(existing_entry_point)) ||
+           (class_linker->FindBootJniStub(this) != nullptr))
         << " method: " << PrettyMethod()
         << " entrypoint: " << existing_entry_point
         << " size: " << OatQuickMethodHeader::FromEntryPoint(existing_entry_point)->GetCodeSize()
