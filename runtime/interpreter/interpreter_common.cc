@@ -48,7 +48,7 @@
 #include "stack.h"
 #include "thread-inl.h"
 #include "var_handles.h"
-#include "well_known_classes.h"
+#include "well_known_classes-inl.h"
 
 namespace art HIDDEN {
 namespace interpreter {
@@ -469,35 +469,48 @@ static bool DoVarHandleInvokeCommon(Thread* self,
   // Do a quick test for "visibly initialized" without a read barrier and, if that fails,
   // do a thorough test for "initialized" (including load acquire) with the read barrier.
   ArtField* field = WellKnownClasses::java_util_concurrent_ThreadLocalRandom_seeder;
-  if (UNLIKELY(!field->GetDeclaringClass<kWithoutReadBarrier>()->IsVisiblyInitialized()) &&
-      !field->GetDeclaringClass()->IsInitialized()) {
-    VariableSizedHandleScope callsite_type_hs(self);
-    mirror::RawMethodType callsite_type(&callsite_type_hs);
-    if (!class_linker->ResolveMethodType(self,
-                                         dex::ProtoIndex(vRegH),
-                                         dex_cache,
-                                         class_loader,
-                                         callsite_type)) {
-      CHECK(self->IsExceptionPending());
+  if (LIKELY(field->GetDeclaringClass<kWithoutReadBarrier>()->IsVisiblyInitialized()) ||
+      field->GetDeclaringClass()->IsInitialized()) {
+    Handle<mirror::MethodType> callsite_type(hs.NewHandle(
+        class_linker->ResolveMethodType(self, dex::ProtoIndex(vRegH), dex_cache, class_loader)));
+    if (LIKELY(callsite_type != nullptr)) {
+      return VarHandleInvokeAccessor(self,
+                                     shadow_frame,
+                                     var_handle,
+                                     callsite_type,
+                                     access_mode,
+                                     &operands,
+                                     result);
+    }
+    // This implies we couldn't resolve one or more types in this VarHandle,
+    // or we could not allocate the `MethodType` object.
+    CHECK(self->IsExceptionPending());
+    if (self->GetException()->GetClass() != WellKnownClasses::java_lang_OutOfMemoryError.Get()) {
       return false;
     }
-    return VarHandleInvokeAccessor(self,
-                                   shadow_frame,
-                                   var_handle,
-                                   callsite_type,
-                                   access_mode,
-                                   &operands,
-                                   result);
+    // Clear the OOME and retry without creating an actual `MethodType` object.
+    // This prevents unexpected OOME for trivial `VarHandle` operations.
+    // It also prevents odd situations where a `VarHandle` operation succeeds but the same
+    // operation fails later because the `MethodType` object was evicted from the `DexCache`
+    // and we suddenly run out of memory to allocate a new one.
+    //
+    // We have previously seen OOMEs in the run-test `183-rmw-stress-test` with
+    // `--optimizng --no-image` (boot class path methods run in interpreter without JIT)
+    // but it probably happened on the first execution of a trivial `VarHandle` operation
+    // and not due to the `DexCache` eviction mentioned above.
+    self->ClearException();
   }
 
-  Handle<mirror::MethodType> callsite_type(hs.NewHandle(
-      class_linker->ResolveMethodType(self, dex::ProtoIndex(vRegH), dex_cache, class_loader)));
-  // This implies we couldn't resolve one or more types in this VarHandle.
-  if (UNLIKELY(callsite_type == nullptr)) {
+  VariableSizedHandleScope callsite_type_hs(self);
+  mirror::RawMethodType callsite_type(&callsite_type_hs);
+  if (!class_linker->ResolveMethodType(self,
+                                       dex::ProtoIndex(vRegH),
+                                       dex_cache,
+                                       class_loader,
+                                       callsite_type)) {
     CHECK(self->IsExceptionPending());
     return false;
   }
-
   return VarHandleInvokeAccessor(self,
                                  shadow_frame,
                                  var_handle,
