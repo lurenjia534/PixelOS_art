@@ -153,10 +153,18 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
             throw new IllegalStateException("This job cannot be scheduled");
         }
 
-        if (!SystemProperties.getBoolean("dalvik.vm.enable_pr_dexopt", false /* def */)
-                && !DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_RUNTIME, "enable_pr_dexopt",
-                        false /* defaultValue */)) {
-            AsLog.i("Pre-reboot Dexopt Job is not enabled by system property");
+        boolean syspropEnable =
+                SystemProperties.getBoolean("dalvik.vm.enable_pr_dexopt", false /* def */);
+        boolean deviceConfigEnable = DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_RUNTIME, "enable_pr_dexopt", false /* defaultValue */);
+        boolean deviceConfigForceDisable = DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_RUNTIME,
+                "force_disable_pr_dexopt", false /* defaultValue */);
+        if ((!syspropEnable && !deviceConfigEnable) || deviceConfigForceDisable) {
+            AsLog.i(String.format(
+                    "Pre-reboot Dexopt Job is not enabled (sysprop:dalvik.vm.enable_pr_dexopt=%b, "
+                    + "device_config:enable_pr_dexopt=%b, "
+                    + "device_config:force_disable_pr_dexopt=%b)",
+                    syspropEnable, deviceConfigEnable, deviceConfigForceDisable));
             return ArtFlags.SCHEDULE_DISABLED_BY_SYSPROP;
         }
 
