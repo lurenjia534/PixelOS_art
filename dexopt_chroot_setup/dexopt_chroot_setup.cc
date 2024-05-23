@@ -82,6 +82,8 @@ const NoDestructor<std::string> kBindMountTmpDir(
     std::string(DexoptChrootSetup::PRE_REBOOT_DEXOPT_DIR) + "/mount_tmp");
 const NoDestructor<std::string> kOtaSlotFile(std::string(DexoptChrootSetup::PRE_REBOOT_DEXOPT_DIR) +
                                              "/ota_slot");
+const NoDestructor<std::string> kSnapshotMappedFile(
+    std::string(DexoptChrootSetup::PRE_REBOOT_DEXOPT_DIR) + "/snapshot_mapped");
 constexpr mode_t kChrootDefaultMode = 0755;
 constexpr std::chrono::milliseconds kSnapshotCtlTimeout = std::chrono::seconds(60);
 
@@ -392,6 +394,12 @@ Result<void> DexoptChrootSetup::SetUpChroot(const std::optional<std::string>& ot
   } else {
     CHECK(ota_slot.value() == "_a" || ota_slot.value() == "_b");
 
+    // Write the file early in case `snapshotctl map` fails in the middle, leaving some devices
+    // mapped. We don't assume that `snapshotctl map` is transactional.
+    if (!WriteStringToFile("", *kSnapshotMappedFile)) {
+      return ErrnoErrorf("Failed to write '{}'", *kSnapshotMappedFile);
+    }
+
     // Run `snapshotctl map` through init to map block devices. We can't run it ourselves because it
     // requires the UID to be 0. See `sys.snapshotctl.map` in `init.rc`.
     if (!SetProperty("sys.snapshotctl.map", "requested")) {
@@ -524,11 +532,17 @@ Result<void> DexoptChrootSetup::TearDownChroot() const {
     return Errorf("Failed to remove file '{}': {}", *kOtaSlotFile, ec.message());
   }
 
-  if (!SetProperty("sys.snapshotctl.unmap", "requested")) {
-    return Errorf("Failed to request snapshotctl unmap");
-  }
-  if (!WaitForProperty("sys.snapshotctl.unmap", "finished", kSnapshotCtlTimeout)) {
-    return Errorf("snapshotctl timed out");
+  if (OS::FileExists(kSnapshotMappedFile->c_str())) {
+    if (!SetProperty("sys.snapshotctl.unmap", "requested")) {
+      return Errorf("Failed to request snapshotctl unmap");
+    }
+    if (!WaitForProperty("sys.snapshotctl.unmap", "finished", kSnapshotCtlTimeout)) {
+      return Errorf("snapshotctl timed out");
+    }
+    std::filesystem::remove(*kSnapshotMappedFile, ec);
+    if (ec) {
+      return Errorf("Failed to remove file '{}': {}", *kSnapshotMappedFile, ec.message());
+    }
   }
 
   return {};
