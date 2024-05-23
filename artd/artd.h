@@ -202,6 +202,8 @@ class Artd : public aidl::com::android::server::art::BnArtd {
       bool in_keepPreRebootStagedFiles,
       int64_t* _aidl_return) override;
 
+  ndk::ScopedAStatus cleanUpPreRebootStagedFiles() override;
+
   ndk::ScopedAStatus isInDalvikCache(const std::string& in_dexFile, bool* _aidl_return) override;
 
   ndk::ScopedAStatus deleteRuntimeArtifacts(

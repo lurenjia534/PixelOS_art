@@ -2096,9 +2096,7 @@ TEST_F(ArtdTest, mergeProfilesWithOptionsDumpClassesAndMethods) {
 
 class ArtdCleanupTest : public ArtdTest {
  protected:
-  void SetUp() override {
-    ArtdTest::SetUp();
-
+  void SetUpForCleanup() {
     // Unmanaged files.
     CreateGcKeptFile(android_data_ + "/user_de/0/com.android.foo/1.odex");
     CreateGcKeptFile(android_data_ + "/user_de/0/com.android.foo/oat/1.odex");
@@ -2236,6 +2234,7 @@ class ArtdCleanupTest : public ArtdTest {
 };
 
 TEST_F(ArtdCleanupTest, cleanupKeepingPreRebootStagedFiles) {
+  SetUpForCleanup();
   CreateGcKeptFile(
       android_expand_ +
       "/123456-7890/app/~~nkfeankfna==/com.android.bar-jfoeaofiew==/oat/arm64/base.odex.staged");
@@ -2246,12 +2245,35 @@ TEST_F(ArtdCleanupTest, cleanupKeepingPreRebootStagedFiles) {
 }
 
 TEST_F(ArtdCleanupTest, cleanupRemovingPreRebootStagedFiles) {
+  SetUpForCleanup();
   CreateGcRemovedFile(
       android_expand_ +
       "/123456-7890/app/~~nkfeankfna==/com.android.bar-jfoeaofiew==/oat/arm64/base.odex.staged");
   CreateGcRemovedFile(android_data_ + "/user_de/0/com.android.foo/aaa/oat/arm64/2.odex.staged");
 
   ASSERT_NO_FATAL_FAILURE(RunCleanup(/*keepPreRebootStagedFiles=*/false));
+  Verify();
+}
+
+TEST_F(ArtdCleanupTest, cleanUpPreRebootStagedFiles) {
+  // Unmanaged file.
+  CreateGcKeptFile(android_data_ + "/user_de/0/com.android.foo/1.odex.staged");
+
+  // Not Pre-reboot staged files.
+  CreateGcKeptFile(android_data_ + "/misc/profiles/ref/com.android.foo/primary.prof");
+  CreateGcKeptFile(
+      android_expand_ +
+      "/123456-7890/app/~~nkfeankfna==/com.android.bar-jfoeaofiew==/oat/arm64/base.odex");
+  CreateGcKeptFile(android_data_ + "/user_de/0/com.android.foo/aaa/oat/arm64/2.odex");
+
+  // Pre-reboot staged files.
+  CreateGcRemovedFile(android_data_ + "/misc/profiles/ref/com.android.foo/primary.prof.staged");
+  CreateGcRemovedFile(
+      android_expand_ +
+      "/123456-7890/app/~~nkfeankfna==/com.android.bar-jfoeaofiew==/oat/arm64/base.odex.staged");
+  CreateGcRemovedFile(android_data_ + "/user_de/0/com.android.foo/aaa/oat/arm64/2.odex.staged");
+
+  ASSERT_STATUS_OK(artd_->cleanUpPreRebootStagedFiles());
   Verify();
 }
 

@@ -162,6 +162,16 @@ std::optional<int64_t> GetSize(std::string_view path) {
   return size;
 }
 
+bool DeleteFile(const std::string& path) {
+  std::error_code ec;
+  std::filesystem::remove(path, ec);
+  if (ec) {
+    LOG(ERROR) << ART_FORMAT("Failed to remove '{}': {}", path, ec.message());
+    return false;
+  }
+  return true;
+}
+
 // Deletes a file. Returns the size of the deleted file, or 0 if the deleted file is empty or an
 // error occurs.
 int64_t GetSizeAndDeleteFile(const std::string& path) {
@@ -169,13 +179,9 @@ int64_t GetSizeAndDeleteFile(const std::string& path) {
   if (!size.has_value()) {
     return 0;
   }
-
-  std::error_code ec;
-  if (!std::filesystem::remove(path, ec)) {
-    LOG(ERROR) << ART_FORMAT("Failed to remove '{}': {}", path, ec.message());
+  if (!DeleteFile(path)) {
     return 0;
   }
-
   return size.value();
 }
 
@@ -768,12 +774,7 @@ ndk::ScopedAStatus Artd::commitTmpProfile(const TmpProfilePath& in_profile) {
 ndk::ScopedAStatus Artd::deleteProfile(const ProfilePath& in_profile) {
   // `in_profile` can be either a Pre-reboot path or an ordinary one.
   std::string profile_path = OR_RETURN_FATAL(BuildProfileOrDmPath(in_profile));
-
-  std::error_code ec;
-  std::filesystem::remove(profile_path, ec);
-  if (ec) {
-    LOG(ERROR) << ART_FORMAT("Failed to remove '{}': {}", profile_path, ec.message());
-  }
+  DeleteFile(profile_path);
 
   return ScopedAStatus::ok();
 }
@@ -1284,6 +1285,19 @@ ScopedAStatus Artd::cleanup(const std::vector<ProfilePath>& in_profilesToKeep,
         (!in_keepPreRebootStagedFiles || !IsPreRebootStagedFile(file))) {
       LOG(INFO) << ART_FORMAT("Cleaning up obsolete file '{}'", file);
       *_aidl_return += GetSizeAndDeleteFile(file);
+    }
+  }
+  return ScopedAStatus::ok();
+}
+
+ScopedAStatus Artd::cleanUpPreRebootStagedFiles() {
+  RETURN_FATAL_IF_PRE_REBOOT(options_);
+  std::string android_data = OR_RETURN_NON_FATAL(GetAndroidDataOrError());
+  std::string android_expand = OR_RETURN_NON_FATAL(GetAndroidExpandOrError());
+  for (const std::string& file : ListManagedFiles(android_data, android_expand)) {
+    if (IsPreRebootStagedFile(file)) {
+      LOG(INFO) << ART_FORMAT("Cleaning up obsolete Pre-reboot staged file '{}'", file);
+      DeleteFile(file);
     }
   }
   return ScopedAStatus::ok();

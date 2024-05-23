@@ -192,6 +192,15 @@ interface IArtd {
             boolean keepPreRebootStagedFiles);
 
     /**
+     * Deletes all Pre-reboot staged files.
+     *
+     * Not supported in Pre-reboot Dexopt mode.
+     *
+     * Throws fatal errors. Logs and ignores non-fatal errors.
+     */
+    void cleanUpPreRebootStagedFiles();
+
+    /**
      * Returns whether the artifacts of the primary dex files should be in the global dalvik-cache
      * directory.
      *

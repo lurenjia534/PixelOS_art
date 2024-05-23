@@ -164,8 +164,12 @@ public class PreRebootDexoptJobTest {
     }
 
     @Test
-    public void testStart() {
-        when(mPreRebootDriver.run(any(), any(), any())).thenReturn(true);
+    public void testStart() throws Exception {
+        var jobStarted = new Semaphore(0);
+        when(mPreRebootDriver.run(any(), any(), any())).thenAnswer(invocation -> {
+            jobStarted.release();
+            return true;
+        });
 
         when(ArtJni.setProperty("dalvik.vm.pre-reboot.has-started", "true"))
                 .thenAnswer(invocation -> {
@@ -177,6 +181,7 @@ public class PreRebootDexoptJobTest {
 
         assertThat(mPreRebootDexoptJob.hasStarted()).isFalse();
         Future<Boolean> future = mPreRebootDexoptJob.start();
+        assertThat(jobStarted.tryAcquire(TIMEOUT_SEC, TimeUnit.SECONDS)).isTrue();
         assertThat(mPreRebootDexoptJob.hasStarted()).isTrue();
 
         Utils.getFuture(future);
