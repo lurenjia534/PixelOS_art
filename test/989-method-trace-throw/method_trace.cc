@@ -63,6 +63,12 @@ extern "C" JNIEXPORT void JNICALL Java_art_Test989_throwANative(JNIEnv* env,
   env->CallStaticVoidMethod(klass, targetMethod);
 }
 
+extern "C" JNIEXPORT void JNICALL Java_art_Test989_doThrowNative(JNIEnv* env,
+                                                                 [[maybe_unused]] jclass klass) {
+  jclass exception_cls = env->FindClass("java/lang/Error");
+  env->ThrowNew(exception_cls, "Error");
+}
+
 extern "C" JNIEXPORT void JNICALL Java_art_Test989_acceptValueNative(JNIEnv* env,
                                                                      jclass klass,
                                                                      jobject arg) {

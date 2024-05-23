@@ -28,6 +28,7 @@ public class Trace {
                                           Method singleStep,
                                           Thread thr);
   public static native void disableTracing(Thread thr);
+  public static native void nativeEnableFramePopEvents();
 
   public static void enableFieldTracing(Class<?> methodClass,
                                         Method fieldAccess,
@@ -41,6 +42,10 @@ public class Trace {
                                          Method exitMethod,
                                          Thread thr) {
     enableTracing(methodClass, entryMethod, exitMethod, null, null, null, thr);
+  }
+
+  public static void enableFramePopEvents() {
+      nativeEnableFramePopEvents();
   }
 
   public static void enableSingleStepTracing(Class<?> methodClass,
