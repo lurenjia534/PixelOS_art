@@ -766,8 +766,7 @@ ndk::ScopedAStatus Artd::commitTmpProfile(const TmpProfilePath& in_profile) {
 }
 
 ndk::ScopedAStatus Artd::deleteProfile(const ProfilePath& in_profile) {
-  RETURN_FATAL_IF_ARG_IS_PRE_REBOOT(in_profile, "profile");
-
+  // `in_profile` can be either a Pre-reboot path or an ordinary one.
   std::string profile_path = OR_RETURN_FATAL(BuildProfileOrDmPath(in_profile));
 
   std::error_code ec;
