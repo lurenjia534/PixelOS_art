@@ -279,14 +279,22 @@ public final class Utils {
         try {
             return future.get();
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            }
-            throw new RuntimeException(cause);
+            throw toRuntimeException(e.getCause());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @NonNull
+    public static RuntimeException toRuntimeException(@NonNull Throwable t) {
+        if (t instanceof RuntimeException r) {
+            return r;
+        }
+        var r = new RuntimeException(t);
+        // Clear the unhelpful stack trace, which is the stack trace of the constructor call above,
+        // so that the user can focus on the stack trace of `t`.
+        r.setStackTrace(new StackTraceElement[0]);
+        return r;
     }
 
     /**

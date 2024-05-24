@@ -25,6 +25,7 @@ import android.app.job.JobParameters;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.Binder;
 import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.SystemProperties;
@@ -187,7 +188,16 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
                                .setMinimumLatency(Duration.ofMinutes(10).toMillis())
                                .build();
 
-        /* @JobScheduler.Result */ int result = mInjector.getJobScheduler().schedule(info);
+        /* @JobScheduler.Result */ int result;
+
+        // This operation requires the uid to be "system" (1000).
+        long identityToken = Binder.clearCallingIdentity();
+        try {
+            result = mInjector.getJobScheduler().schedule(info);
+        } finally {
+            Binder.restoreCallingIdentity(identityToken);
+        }
+
         if (result == JobScheduler.RESULT_SUCCESS) {
             AsLog.i("Pre-reboot Dexopt Job scheduled");
             mSerializedExecutor.execute(() -> mInjector.getStatsReporter().recordJobScheduled());
@@ -204,7 +214,13 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
             throw new IllegalStateException("This job cannot be unscheduled");
         }
 
-        mInjector.getJobScheduler().cancel(JOB_ID);
+        // This operation requires the uid to be "system" (1000).
+        long identityToken = Binder.clearCallingIdentity();
+        try {
+            mInjector.getJobScheduler().cancel(JOB_ID);
+        } finally {
+            Binder.restoreCallingIdentity(identityToken);
+        }
     }
 
     /** The future returns true if the job is cancelled by the job scheduler. */
@@ -277,6 +293,11 @@ public class PreRebootDexoptJob implements ArtServiceJobInterface {
 
     public synchronized boolean hasStarted() {
         return mHasStarted;
+    }
+
+    public void test() {
+        unschedule();
+        Utils.executeAndWait(mSerializedExecutor, () -> { mInjector.getPreRebootDriver().test(); });
     }
 
     /**

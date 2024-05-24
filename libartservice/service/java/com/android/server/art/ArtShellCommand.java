@@ -186,6 +186,9 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
             case "on-ota-staged": {
                 return handleOnOtaStaged(pw);
             }
+            case "pr-dexopt-job": {
+                return handlePrDexoptJob(pw);
+            }
             default:
                 pw.printf("Error: Unknown 'art' sub-command '%s'\n", subcmd);
                 pw.println("See 'pm help' for help");
@@ -672,15 +675,7 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
             return 1;
         }
 
-        int code;
-
-        // This operation requires the uid to be "system" (1000).
-        long identityToken = Binder.clearCallingIdentity();
-        try {
-            code = mArtManagerLocal.getPreRebootDexoptJob().onUpdateReady(otaSlot);
-        } finally {
-            Binder.restoreCallingIdentity(identityToken);
-        }
+        int code = mArtManagerLocal.getPreRebootDexoptJob().onUpdateReady(otaSlot);
 
         switch (code) {
             case ArtFlags.SCHEDULE_SUCCESS:
@@ -696,6 +691,38 @@ public final class ArtShellCommand extends BasicShellCommandHandler {
                 // Can't happen.
                 throw new IllegalStateException("Unknown result code: " + code);
         }
+    }
+
+    private int handlePrDexoptJob(@NonNull PrintWriter pw) {
+        if (!SdkLevel.isAtLeastV()) {
+            pw.println("Error: Unsupported command 'pr-dexopt-job'");
+            return 1;
+        }
+
+        boolean isTest = false;
+
+        String opt = getNextOption();
+        if ("--test".equals(opt)) {
+            isTest = true;
+        } else if (opt != null) {
+            pw.println("Error: Unknown option: " + opt);
+            return 1;
+        }
+
+        if (isTest) {
+            try {
+                mArtManagerLocal.getPreRebootDexoptJob().test();
+                pw.println("Success");
+                return 0;
+            } catch (Exception e) {
+                pw.println("Failure");
+                e.printStackTrace(pw);
+                return 2; // "1" is for general errors. Use "2" for the test failure.
+            }
+        }
+
+        pw.println("Error: No option specified");
+        return 1;
     }
 
     @Override
