@@ -194,7 +194,6 @@ public class Main {
   }
 
   // Check that we don't generate a select since we only have a single return.
-  // TODO: This is no longer true, since D8 does not share the branches with different lines.
 
   /// CHECK-START: int Main.$noinline$testSimpleDiamondSameValueWithReturn(boolean) builder (after)
   /// CHECK:       <<Const10:i\d+>> IntConstant 10
@@ -202,7 +201,7 @@ public class Main {
 
   /// CHECK-START: int Main.$noinline$testSimpleDiamondSameValueWithReturn(boolean) builder (after)
   /// CHECK:       Return
-  /// CHECK:       Return
+  /// CHECK-NOT:   Return
 
   private static int $noinline$testSimpleDiamondSameValueWithReturn(boolean bool_param) {
     if (bool_param) {
@@ -235,7 +234,6 @@ public class Main {
   }
 
   // Check that we don't generate a select since we only have a single return.
-  // TODO: This is no longer true, since D8 does not share the branches with different lines.
 
   /// CHECK-START: int Main.$noinline$testSimpleDiamondSameValueWithReturn(boolean) builder (after)
   /// CHECK:       <<Const10:i\d+>> IntConstant 10
@@ -243,7 +241,7 @@ public class Main {
 
   /// CHECK-START: int Main.$noinline$testSimpleDiamondSameValueWithReturn(boolean) builder (after)
   /// CHECK:       Return
-  /// CHECK:       Return
+  /// CHECK-NOT:   Return
   private static int $noinline$testDoubleDiamondSameValueWithReturn(boolean bool_param_1, boolean bool_param_2) {
     if (bool_param_1) {
       return 10;
@@ -263,21 +261,18 @@ public class Main {
   /// CHECK-DAG:   <<Const20:i\d+>> IntConstant 20
   /// CHECK-DAG:                    Return [<<Const10>>]
   /// CHECK-DAG:                    Return [<<Const20>>]
-  /// CHECK-DAG:                    Return [<<Const20>>]
 
-  // Note that we have 3 returns as D8 only merges when the line positions are equal.
+  // Note that we have 2 returns instead of 3 as the two `return 20;` get merged into one before `select_generator`.
   /// CHECK-START: int Main.$noinline$testDoubleDiamondSameValueButNotAllOuterWithReturn(boolean, boolean) select_generator (before)
   /// CHECK:                    Return
   /// CHECK:                    Return
-  /// CHECK:                    Return
+  /// CHECK-NOT:                Return
 
   /// CHECK-START: int Main.$noinline$testDoubleDiamondSameValueButNotAllOuterWithReturn(boolean, boolean) select_generator (after)
   /// CHECK-DAG:   <<Bool1:z\d+>>   ParameterValue
-  /// CHECK-DAG:   <<Bool2:z\d+>>   ParameterValue
   /// CHECK-DAG:   <<Const10:i\d+>> IntConstant 10
   /// CHECK-DAG:   <<Const20:i\d+>> IntConstant 20
-  /// CHECK-DAG:   <<Select:i\d+>>  Select [<<Const20>>,<<Const20>>,<<Bool2>>]
-  /// CHECK-DAG:   <<Select2:i\d+>> Select [<<Select>>,<<Const10>>,<<Bool1>>]
+  /// CHECK-DAG:   <<Select2:i\d+>> Select [<<Const20>>,<<Const10>>,<<Bool1>>]
   /// CHECK-DAG:                    Return [<<Select2>>]
   private static int $noinline$testDoubleDiamondSameValueButNotAllOuterWithReturn(boolean bool_param_1, boolean bool_param_2) {
     if (bool_param_1) {
