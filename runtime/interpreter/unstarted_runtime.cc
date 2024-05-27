@@ -99,7 +99,7 @@ static void CharacterLowerUpper(Thread* self,
                                 JValue* result,
                                 size_t arg_offset,
                                 bool to_lower_case) REQUIRES_SHARED(Locks::mutator_lock_) {
-  uint32_t int_value = static_cast<uint32_t>(shadow_frame->GetVReg(arg_offset));
+  int32_t int_value = shadow_frame->GetVReg(arg_offset);
 
   // Only ASCII (7-bit).
   if (!isascii(int_value)) {
@@ -109,14 +109,16 @@ static void CharacterLowerUpper(Thread* self,
     return;
   }
 
-  std::locale c_locale("C");
-  char char_value = static_cast<char>(int_value);
-
-  if (to_lower_case) {
-    result->SetI(std::tolower(char_value, c_locale));
-  } else {
-    result->SetI(std::toupper(char_value, c_locale));
-  }
+  // Constructing a `std::locale("C")` is slow. Use an explicit calculation, compare in debug mode.
+  int32_t masked_value = int_value & ~0x20;  // Clear bit distinguishing `A`..`Z` from `a`..`z`.
+  bool is_ascii_letter = ('A' <= masked_value) && (masked_value <= 'Z');
+  int32_t result_value = is_ascii_letter ? (masked_value | (to_lower_case ? 0x20 : 0)) : int_value;
+  DCHECK_EQ(result_value,
+            to_lower_case
+                ? std::tolower(dchecked_integral_cast<char>(int_value), std::locale("C"))
+                : std::toupper(dchecked_integral_cast<char>(int_value), std::locale("C")))
+      << std::boolalpha << to_lower_case;
+  result->SetI(result_value);
 }
 
 void UnstartedRuntime::UnstartedCharacterToLowerCase(
