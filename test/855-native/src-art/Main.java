@@ -41,6 +41,11 @@ public class Main {
   public static void main(String[] args) throws Exception {
     System.loadLibrary(args[0]);
 
+    // In case we already run in tracing mode, disable it.
+    if (VMDebug.getMethodTracingMode() != 0) {
+        VMDebug.stopMethodTracing();
+    }
+
     File tempFile = createTempFile();
 
     // Start method tracing so that native methods get the generic JNI stub.
