@@ -2744,7 +2744,12 @@ TEST_F(ArtdPreRebootTest, preRebootInit) {
                                   _))
       .WillOnce(Return(0));
 
-  ASSERT_STATUS_OK(artd_->preRebootInit());
+  std::shared_ptr<IArtdCancellationSignal> cancellation_signal;
+  ASSERT_STATUS_OK(artd_->createCancellationSignal(&cancellation_signal));
+
+  bool aidl_return;
+  ASSERT_STATUS_OK(artd_->preRebootInit(cancellation_signal, &aidl_return));
+  EXPECT_TRUE(aidl_return);
 
   auto env_var_count = []() {
     int count = 0;
@@ -2767,7 +2772,8 @@ TEST_F(ArtdPreRebootTest, preRebootInit) {
 
   // Calling again will not involve `mount`, `derive_classpath`, or `odrefresh` but only restore env
   // vars.
-  EXPECT_TRUE(artd_->preRebootInit().isOk());
+  ASSERT_STATUS_OK(artd_->preRebootInit(/*in_cancellationSignal=*/nullptr, &aidl_return));
+  EXPECT_TRUE(aidl_return);
   EXPECT_EQ(getenv("ANDROID_ART_ROOT"), art_root_);
   EXPECT_EQ(getenv("ANDROID_DATA"), android_data_);
   EXPECT_STREQ(getenv("BOOTCLASSPATH"), "/foo:/bar");
@@ -2785,7 +2791,11 @@ TEST_F(ArtdPreRebootTest, preRebootInitFailed) {
   EXPECT_CALL(*mock_exec_utils_, DoExecAndReturnCode(Contains(art_root_ + "/bin/odrefresh"), _, _))
       .WillOnce(Return(1));
 
-  ndk::ScopedAStatus status = artd_->preRebootInit();
+  std::shared_ptr<IArtdCancellationSignal> cancellation_signal;
+  ASSERT_STATUS_OK(artd_->createCancellationSignal(&cancellation_signal));
+
+  bool aidl_return;
+  ndk::ScopedAStatus status = artd_->preRebootInit(cancellation_signal, &aidl_return);
   EXPECT_FALSE(status.isOk());
   EXPECT_EQ(status.getExceptionCode(), EX_SERVICE_SPECIFIC);
   EXPECT_STREQ(status.getMessage(), "odrefresh returned an unexpected code: 1");
@@ -2795,11 +2805,66 @@ TEST_F(ArtdPreRebootTest, preRebootInitNoRetry) {
   // Simulate that a previous attempt failed halfway.
   ASSERT_TRUE(WriteStringToFile("", pre_reboot_tmp_dir_ + "/classpath.txt"));
 
-  ndk::ScopedAStatus status = artd_->preRebootInit();
+  bool aidl_return;
+  ndk::ScopedAStatus status = artd_->preRebootInit(/*in_cancellationSignal=*/nullptr, &aidl_return);
   EXPECT_FALSE(status.isOk());
   EXPECT_EQ(status.getExceptionCode(), EX_ILLEGAL_STATE);
-  EXPECT_STREQ(status.getMessage(),
-               "preRebootInit must not be concurrently called or retried after failure");
+  EXPECT_STREQ(
+      status.getMessage(),
+      "preRebootInit must not be concurrently called or retried after cancellation or failure");
+}
+
+TEST_F(ArtdPreRebootTest, preRebootInitCancelled) {
+  EXPECT_CALL(*mock_exec_utils_,
+              DoExecAndReturnCode(Contains("/apex/com.android.sdkext/bin/derive_classpath"), _, _))
+      .WillOnce(DoAll(WithArg<0>(WriteToFdFlag("/proc/self/fd/", "export BOOTCLASSPATH /foo:/bar")),
+                      Return(0)));
+
+  EXPECT_CALL(mock_mount_, Call).Times(2).WillRepeatedly(Return(0));
+
+  std::shared_ptr<IArtdCancellationSignal> cancellation_signal;
+  ASSERT_STATUS_OK(artd_->createCancellationSignal(&cancellation_signal));
+
+  constexpr pid_t kPid = 123;
+  constexpr std::chrono::duration<int> kTimeout = std::chrono::seconds(1);
+
+  std::condition_variable process_started_cv, process_killed_cv;
+  std::mutex mu;
+
+  EXPECT_CALL(*mock_exec_utils_, DoExecAndReturnCode(Contains(art_root_ + "/bin/odrefresh"), _, _))
+      .WillOnce([&](auto, const ExecCallbacks& callbacks, auto) {
+        std::unique_lock<std::mutex> lock(mu);
+        // Step 2.
+        callbacks.on_start(kPid);
+        process_started_cv.notify_one();
+        EXPECT_EQ(process_killed_cv.wait_for(lock, kTimeout), std::cv_status::no_timeout);
+        // Step 5.
+        callbacks.on_end(kPid);
+        return Error();
+      });
+
+  EXPECT_CALL(mock_kill_, Call(kPid, SIGKILL)).WillOnce([&](auto, auto) {
+    // Step 4.
+    process_killed_cv.notify_one();
+    return 0;
+  });
+
+  std::thread t;
+  bool aidl_return;
+  {
+    std::unique_lock<std::mutex> lock(mu);
+    // Step 1.
+    t = std::thread(
+        [&] { ASSERT_STATUS_OK(artd_->preRebootInit(cancellation_signal, &aidl_return)); });
+    EXPECT_EQ(process_started_cv.wait_for(lock, kTimeout), std::cv_status::no_timeout);
+    // Step 3.
+    cancellation_signal->cancel();
+  }
+
+  t.join();
+
+  // Step 6.
+  EXPECT_FALSE(aidl_return);
 }
 
 TEST_F(ArtdPreRebootTest, dexopt) {

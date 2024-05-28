@@ -21,14 +21,17 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.os.ArtModuleServiceManager;
 import android.os.Build;
+import android.os.CancellationSignal;
 import android.os.RemoteException;
 
 import androidx.annotation.RequiresApi;
 
 import com.android.server.art.ArtdRefCache;
+import com.android.server.art.AsLog;
 import com.android.server.art.DexUseManagerLocal;
 import com.android.server.art.GlobalInjector;
 import com.android.server.art.IArtd;
+import com.android.server.art.IArtdCancellationSignal;
 import com.android.server.art.IDexoptChrootSetup;
 
 import java.util.Objects;
@@ -50,15 +53,19 @@ public class PreRebootGlobalInjector extends GlobalInjector {
         mArtModuleServiceManager = artModuleServiceManager;
     }
 
-    public static void init(
-            @NonNull ArtModuleServiceManager artModuleServiceManager, @NonNull Context context) {
+    /** Returns true on success, or false on cancellation. Throws on failure. */
+    public static boolean init(@NonNull ArtModuleServiceManager artModuleServiceManager,
+            @NonNull Context context, @NonNull CancellationSignal cancellationSignal) {
         var instance = new PreRebootGlobalInjector(artModuleServiceManager);
         GlobalInjector.setInstance(instance);
+        // This call throws if artd cannot be initialized.
+        if (!instance.initArtd(cancellationSignal)) {
+            return false;
+        }
         try (var pin = ArtdRefCache.getInstance().new Pin()) {
-            // Fail early if artd cannot be initialized.
-            ArtdRefCache.getInstance().getArtd();
             instance.mDexUseManager = DexUseManagerLocal.createInstance(context);
         }
+        return true;
     }
 
     @Override
@@ -69,16 +76,45 @@ public class PreRebootGlobalInjector extends GlobalInjector {
     @Override
     public void checkArtModuleServiceManager() {}
 
-    @Override
     @NonNull
-    public IArtd getArtd() {
+    private IArtd getArtdNoInit() {
         IArtd artd = IArtd.Stub.asInterface(
                 mArtModuleServiceManager.getArtdPreRebootServiceRegisterer().waitForService());
         if (artd == null) {
             throw new IllegalStateException("Unable to connect to artd for pre-reboot dexopt");
         }
+        return artd;
+    }
+
+    private boolean initArtd(@NonNull CancellationSignal cancellationSignal) {
+        if (cancellationSignal.isCanceled()) {
+            return false;
+        }
         try {
-            artd.preRebootInit();
+            IArtd artd = getArtdNoInit();
+            IArtdCancellationSignal artdCancellationSignal = artd.createCancellationSignal();
+            cancellationSignal.setOnCancelListener(() -> {
+                try {
+                    artdCancellationSignal.cancel();
+                } catch (RemoteException e) {
+                    AsLog.e("An error occurred when sending a cancellation signal", e);
+                }
+            });
+            return artd.preRebootInit(artdCancellationSignal);
+        } catch (RemoteException e) {
+            throw new IllegalStateException("Unable to initialize artd for pre-reboot dexopt", e);
+        } finally {
+            // Make sure artd does not leak even if the caller holds `cancellationSignal` forever.
+            cancellationSignal.setOnCancelListener(null);
+        }
+    }
+
+    @Override
+    @NonNull
+    public IArtd getArtd() {
+        IArtd artd = getArtdNoInit();
+        try {
+            artd.preRebootInit(null /* cancellationSignal */);
         } catch (RemoteException e) {
             throw new IllegalStateException("Unable to initialize artd for pre-reboot dexopt", e);
         }

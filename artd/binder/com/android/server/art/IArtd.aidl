@@ -295,14 +295,24 @@ interface IArtd {
 
     /**
      * Initializes the environment for Pre-reboot Dexopt. This operation includes initializing
-     * environment variables and boot images.
+     * environment variables and boot images. Returns true on success, or false on cancellation.
+     * Throws on failure.
      *
      * Note that this method results in a non-persistent state change, so it must be called every
      * time a new instance of artd is started for Pre-reboot Dexopt.
      *
+     * On the first call to this method, a cancellation signal must be passed through the {@code
+     * cancellationSignal} parameter. The cancellation signal can then be used for cancelling the
+     * first call. On subsequent calls to this method, the {@code cancellationSignal} parameter is
+     * ignored.
+     *
+     * After cancellation or failure, the environment will not be usable for Pre-reboot Dexopt, and
+     * this operation cannot be retried.
+     *
      * Throws fatal and non-fatal errors.
      */
-    void preRebootInit();
+    boolean preRebootInit(
+            in @nullable com.android.server.art.IArtdCancellationSignal cancellationSignal);
 
     /** For Pre-reboot Dexopt use. See {@link ArtJni#validateDexPath}. */
     @nullable @utf8InCpp String validateDexPath(@utf8InCpp String dexFile);

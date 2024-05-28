@@ -63,7 +63,10 @@ public class PreRebootManager implements PreRebootManagerInterface {
             @NonNull Context context, @NonNull CancellationSignal cancellationSignal) {
         ExecutorService callbackExecutor = Executors.newSingleThreadExecutor();
         try {
-            PreRebootGlobalInjector.init(artModuleServiceManager, context);
+            if (!PreRebootGlobalInjector.init(
+                        artModuleServiceManager, context, cancellationSignal)) {
+                return;
+            }
             ArtManagerLocal artManagerLocal = new ArtManagerLocal(context);
             PackageManagerLocal packageManagerLocal = Objects.requireNonNull(
                     LocalManagerRegistry.getManager(PackageManagerLocal.class));

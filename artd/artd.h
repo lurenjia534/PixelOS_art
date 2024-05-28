@@ -69,6 +69,12 @@ class ArtdCancellationSignal : public aidl::com::android::server::art::BnArtdCan
 
   ndk::ScopedAStatus getType(int64_t* _aidl_return) override;
 
+  // Returns callbacks to be provided to `ExecUtils`, to register/unregister the process with this
+  // cancellation signal.
+  ExecCallbacks CreateExecCallbacks();
+
+  bool IsCancelled();
+
  private:
   std::mutex mu_;
   // True if cancellation has been signaled.
@@ -77,8 +83,6 @@ class ArtdCancellationSignal : public aidl::com::android::server::art::BnArtdCan
   std::unordered_set<pid_t> pids_ GUARDED_BY(mu_);
 
   std::function<int(pid_t, int)> kill_;
-
-  friend class Artd;
 };
 
 class Artd : public aidl::com::android::server::art::BnArtd {
@@ -233,7 +237,10 @@ class Artd : public aidl::com::android::server::art::BnArtd {
   ndk::ScopedAStatus checkPreRebootSystemRequirements(const std::string& in_chrootDir,
                                                       bool* _aidl_return) override;
 
-  ndk::ScopedAStatus preRebootInit() override;
+  ndk::ScopedAStatus preRebootInit(
+      const std::shared_ptr<aidl::com::android::server::art::IArtdCancellationSignal>&
+          in_cancellationSignal,
+      bool* _aidl_return) override;
 
   ndk::ScopedAStatus validateDexPath(const std::string& in_dexFile,
                                      std::optional<std::string>* _aidl_return) override;
@@ -306,7 +313,7 @@ class Artd : public aidl::com::android::server::art::BnArtd {
   android::base::Result<void> PreRebootInitClearEnvs();
   android::base::Result<void> PreRebootInitSetEnvFromFile(const std::string& path);
   android::base::Result<void> PreRebootInitDeriveClasspath(const std::string& path);
-  android::base::Result<void> PreRebootInitBootImages();
+  android::base::Result<bool> PreRebootInitBootImages(ArtdCancellationSignal* cancellation_signal);
 
   std::mutex cache_mu_;
   std::optional<std::vector<std::string>> cached_boot_image_locations_ GUARDED_BY(cache_mu_);
