@@ -17,6 +17,8 @@
 #include "exec_utils.h"
 
 #include <poll.h>
+#include <signal.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -65,6 +67,10 @@ std::string ToCommandLine(const std::vector<std::string>& args) {
 // If there is a runtime (Runtime::Current != nullptr) then the subprocess is created with the
 // same environment that existed when the runtime was started.
 // Returns the process id of the child process on success, -1 otherwise.
+// The child is killed as soon as the caller thread dies, the caller thread needs to stay around and
+// wait for the child. Therefore, this function is most suitable to be used by
+// `ExecAndReturnResult`, which does the wait. It's not suitable to be used for fire-and-forget
+// exec's.
 pid_t ExecWithoutWait(const std::vector<std::string>& arg_vector, std::string* error_msg) {
   // Convert the args to char pointers.
   const char* program = arg_vector[0].c_str();
@@ -82,6 +88,12 @@ pid_t ExecWithoutWait(const std::vector<std::string>& arg_vector, std::string* e
 
     // change process groups, so we don't get reaped by ProcessManager
     setpgid(0, 0);
+
+    // Kill the child process when the parent process dies.
+    if (prctl(PR_SET_PDEATHSIG, SIGKILL) != 0) {
+      // This should never happen.
+      PLOG(FATAL) << "Failed to call prctl";
+    }
 
     // (b/30160149): protect subprocesses from modifications to LD_LIBRARY_PATH, etc.
     // Use the snapshot of the environment from the time the runtime was created.
