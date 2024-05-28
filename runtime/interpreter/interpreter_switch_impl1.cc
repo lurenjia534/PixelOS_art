@@ -54,9 +54,14 @@ class ActiveTransactionChecker {
   static void RecordArrayElementsInTransaction(ObjPtr<mirror::Object> array, int32_t count)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static void RecordAllocatedObject([[maybe_unused]] ObjPtr<mirror::Object> new_object)
+  static void RecordNewObject(ObjPtr<mirror::Object> new_object)
       REQUIRES_SHARED(Locks::mutator_lock_) {
-    GetClassLinker()->GetTransaction()->RecordAllocatedObject(new_object);
+    GetClassLinker()->GetTransaction()->RecordNewObject(new_object);
+  }
+
+  static void RecordNewArray(ObjPtr<mirror::Array> new_object)
+      REQUIRES_SHARED(Locks::mutator_lock_) {
+    GetClassLinker()->GetTransaction()->RecordNewArray(new_object);
   }
 
  private:
@@ -85,7 +90,7 @@ void ActiveTransactionChecker::RecordArrayElementsInTransaction(ObjPtr<mirror::O
   DCHECK(array->IsArrayInstance());
   DCHECK_LE(count, array->AsArray()->GetLength());
   Transaction* transaction = GetClassLinker()->GetTransaction();
-  if (!transaction->NeedsTransactionRecords(array.Ptr())) {
+  if (!transaction->ArrayNeedsTransactionRecords(array->AsArray())) {
     return;
   }
   // No read barrier is needed for reading a chain of constant references

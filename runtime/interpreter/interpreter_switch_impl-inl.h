@@ -861,7 +861,7 @@ class InstructionHandler {
       } else {
         obj = AllocObjectFromCode(c, Self(), allocator_type);
         if (obj != nullptr) {
-          TransactionChecker::RecordAllocatedObject(obj);
+          TransactionChecker::RecordNewObject(obj);
         }
       }
     }
@@ -875,17 +875,17 @@ class InstructionHandler {
 
   HANDLER_ATTRIBUTES bool NEW_ARRAY() {
     int32_t length = GetVReg(B());
-    ObjPtr<mirror::Object> obj = AllocArrayFromCode(
+    ObjPtr<mirror::Array> array = AllocArrayFromCode(
         dex::TypeIndex(C()),
         length,
         shadow_frame_.GetMethod(),
         Self(),
         Runtime::Current()->GetHeap()->GetCurrentAllocator());
-    if (UNLIKELY(obj == nullptr)) {
+    if (UNLIKELY(array == nullptr)) {
       return false;  // Pending exception.
     }
-    TransactionChecker::RecordAllocatedObject(obj);
-    SetVRegReference(A(), obj);
+    TransactionChecker::RecordNewArray(array);
+    SetVRegReference(A(), array);
     return true;
   }
 

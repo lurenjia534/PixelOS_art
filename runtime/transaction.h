@@ -74,22 +74,23 @@ class Transaction final {
     return strict_;
   }
 
-  // Record allocated object.
+  // Record newly allocated object/array.
   //
   // There is no reason to record old values for newly allocated objects because they become
   // unreachable when the transaction is rolled back, so their data does not need to be rolled back.
-  // We keep information about the last allocated object to reduce the number of such unnecessary
-  // records but we do not keep track of all objects newly allocated in the transaction.
-  // Note that just keeping the last allocated object avoids all records for a `System.arraycopy()`
-  // or `fill-array-data` used to copy data to a newly allocated array.
-  void RecordAllocatedObject(ObjPtr<mirror::Object> allocated_object)
-      REQUIRES_SHARED(Locks::mutator_lock_) {
-    last_allocated_object_ = allocated_object.Ptr();
-  }
+  //
+  // Implementation details: We track all newly allocated objects/arrays by creating an
+  // `ObjectLog`/`ArrayLog` flagged as a new object/array. We also cache the last allocated
+  // object/array which often helps avoid the search for the flagged `ObjectLog`/`ArrayLog`.
+  void RecordNewObject(ObjPtr<mirror::Object> allocated_object)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+  void RecordNewArray(ObjPtr<mirror::Array> allocated_object)
+      REQUIRES_SHARED(Locks::mutator_lock_);
 
-  bool NeedsTransactionRecords(mirror::Object* obj) {
-    return obj != last_allocated_object_;
-  }
+  bool ObjectNeedsTransactionRecords(ObjPtr<mirror::Object> obj)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+  bool ArrayNeedsTransactionRecords(ObjPtr<mirror::Array> array)
+      REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Record object field changes.
   void RecordWriteFieldBoolean(mirror::Object* obj,
@@ -177,8 +178,18 @@ class Transaction final {
       return field_values_.size();
     }
 
+    void MarkAsNewObject() {
+      DCHECK(field_values_.empty());
+      is_new_object_ = true;
+    }
+
+    bool IsNewObject() const {
+      return is_new_object_;
+    }
+
     explicit ObjectLog(ScopedArenaAllocator* allocator)
-        : field_values_(std::less<uint32_t>(), allocator->Adapter(kArenaAllocTransaction)) {}
+        : is_new_object_(false),
+          field_values_(std::less<uint32_t>(), allocator->Adapter(kArenaAllocTransaction)) {}
     ObjectLog(ObjectLog&& log) = default;
 
    private:
@@ -209,6 +220,10 @@ class Transaction final {
                         MemberOffset field_offset,
                         const FieldValue& field_value) const REQUIRES_SHARED(Locks::mutator_lock_);
 
+    // Whether this is a new object. We do not need to keep transaction records for objects
+    // created inside a transaction because they become unreachable on rollback.
+    bool is_new_object_;
+
     // Maps field's offset to its value.
     ScopedArenaSafeMap<uint32_t, FieldValue> field_values_;
 
@@ -225,8 +240,18 @@ class Transaction final {
       return array_values_.size();
     }
 
+    void MarkAsNewArray() {
+      DCHECK(array_values_.empty());
+      is_new_array_ = true;
+    }
+
+    bool IsNewArray() const {
+      return is_new_array_;
+    }
+
     explicit ArrayLog(ScopedArenaAllocator* allocator)
-        : array_values_(std::less<size_t>(), allocator->Adapter(kArenaAllocTransaction)) {}
+        : is_new_array_(false),
+          array_values_(std::less<size_t>(), allocator->Adapter(kArenaAllocTransaction)) {}
 
     ArrayLog(ArrayLog&& log) = default;
 
@@ -235,6 +260,10 @@ class Transaction final {
                         Primitive::Type array_type,
                         size_t index,
                         uint64_t value) const REQUIRES_SHARED(Locks::mutator_lock_);
+
+    // Whether this is a new array. We do not need to keep transaction records for arrays
+    // created inside a transaction because they become unreachable on rollback.
+    bool is_new_array_;
 
     // Maps index to value.
     // TODO use JValue instead ?
