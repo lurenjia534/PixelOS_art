@@ -421,7 +421,7 @@ static inline bool DoLongRemainder(ShadowFrame& shadow_frame,
 
 // Handles filled-new-array and filled-new-array-range instructions.
 // Returns true on success, otherwise throws an exception and returns false.
-template <bool is_range, bool transaction_active>
+template <bool is_range>
 bool DoFilledNewArray(const Instruction* inst,
                       const ShadowFrame& shadow_frame,
                       Thread* self,

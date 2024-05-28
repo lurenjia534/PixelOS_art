@@ -57,6 +57,7 @@ Transaction::Transaction(bool strict,
       heap_(Runtime::Current()->GetHeap()),
       strict_(strict),
       root_(root),
+      last_allocated_object_(nullptr),
       assert_no_new_records_reason_(nullptr) {
   DCHECK(Runtime::Current()->IsAotCompiler());
   DCHECK_NE(arena_stack != nullptr, arena_pool != nullptr);
@@ -174,8 +175,10 @@ void Transaction::RecordWriteFieldBoolean(mirror::Object* obj,
                                           bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.LogBooleanValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.LogBooleanValue(field_offset, value, is_volatile);
+  }
 }
 
 void Transaction::RecordWriteFieldByte(mirror::Object* obj,
@@ -184,8 +187,10 @@ void Transaction::RecordWriteFieldByte(mirror::Object* obj,
                                        bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.LogByteValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.LogByteValue(field_offset, value, is_volatile);
+  }
 }
 
 void Transaction::RecordWriteFieldChar(mirror::Object* obj,
@@ -194,8 +199,10 @@ void Transaction::RecordWriteFieldChar(mirror::Object* obj,
                                        bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.LogCharValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.LogCharValue(field_offset, value, is_volatile);
+  }
 }
 
 
@@ -205,8 +212,10 @@ void Transaction::RecordWriteFieldShort(mirror::Object* obj,
                                         bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.LogShortValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.LogShortValue(field_offset, value, is_volatile);
+  }
 }
 
 
@@ -216,8 +225,10 @@ void Transaction::RecordWriteField32(mirror::Object* obj,
                                      bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.Log32BitsValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.Log32BitsValue(field_offset, value, is_volatile);
+  }
 }
 
 void Transaction::RecordWriteField64(mirror::Object* obj,
@@ -226,8 +237,10 @@ void Transaction::RecordWriteField64(mirror::Object* obj,
                                      bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.Log64BitsValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.Log64BitsValue(field_offset, value, is_volatile);
+  }
 }
 
 void Transaction::RecordWriteFieldReference(mirror::Object* obj,
@@ -236,8 +249,10 @@ void Transaction::RecordWriteFieldReference(mirror::Object* obj,
                                             bool is_volatile) {
   DCHECK(obj != nullptr);
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ObjectLog& object_log = GetOrCreateObjectLog(obj);
-  object_log.LogReferenceValue(field_offset, value, is_volatile);
+  if (NeedsTransactionRecords(obj)) {
+    ObjectLog& object_log = GetOrCreateObjectLog(obj);
+    object_log.LogReferenceValue(field_offset, value, is_volatile);
+  }
 }
 
 void Transaction::RecordWriteArray(mirror::Array* array, size_t index, uint64_t value) {
@@ -245,8 +260,10 @@ void Transaction::RecordWriteArray(mirror::Array* array, size_t index, uint64_t 
   DCHECK(array->IsArrayInstance());
   DCHECK(!array->IsObjectArray());
   DCHECK(assert_no_new_records_reason_ == nullptr) << assert_no_new_records_reason_;
-  ArrayLog& array_log = array_logs_.GetOrCreate(array, [&]() { return ArrayLog(&allocator_); });
-  array_log.LogValue(index, value);
+  if (NeedsTransactionRecords(array)) {
+    ArrayLog& array_log = array_logs_.GetOrCreate(array, [&]() { return ArrayLog(&allocator_); });
+    array_log.LogValue(index, value);
+  }
 }
 
 void Transaction::RecordResolveString(ObjPtr<mirror::DexCache> dex_cache,
@@ -355,6 +372,7 @@ void Transaction::VisitRoots(RootVisitor* visitor) {
   DCHECK(Locks::mutator_lock_->IsExclusiveHeld(Thread::Current()));
 
   visitor->VisitRoot(reinterpret_cast<mirror::Object**>(&root_), RootInfo(kRootUnknown));
+  visitor->VisitRoot(&last_allocated_object_, RootInfo(kRootUnknown));
   {
     // Create a separate `ArenaStack` for this thread.
     ArenaStack arena_stack(Runtime::Current()->GetArenaPool());

@@ -856,8 +856,13 @@ class InstructionHandler {
       gc::AllocatorType allocator_type = Runtime::Current()->GetHeap()->GetCurrentAllocator();
       if (UNLIKELY(c->IsStringClass())) {
         obj = mirror::String::AllocEmptyString(Self(), allocator_type);
+        // Do not record the allocated string in the transaction.
+        // There can be no transaction records for this immutable object.
       } else {
         obj = AllocObjectFromCode(c, Self(), allocator_type);
+        if (obj != nullptr) {
+          TransactionChecker::RecordAllocatedObject(obj);
+        }
       }
     }
     if (UNLIKELY(obj == nullptr)) {
@@ -879,18 +884,17 @@ class InstructionHandler {
     if (UNLIKELY(obj == nullptr)) {
       return false;  // Pending exception.
     }
+    TransactionChecker::RecordAllocatedObject(obj);
     SetVRegReference(A(), obj);
     return true;
   }
 
   HANDLER_ATTRIBUTES bool FILLED_NEW_ARRAY() {
-    return DoFilledNewArray<false, transaction_active>(
-        inst_, shadow_frame_, Self(), ResultRegister());
+    return DoFilledNewArray</*is_range=*/ false>(inst_, shadow_frame_, Self(), ResultRegister());
   }
 
   HANDLER_ATTRIBUTES bool FILLED_NEW_ARRAY_RANGE() {
-    return DoFilledNewArray<true, transaction_active>(
-        inst_, shadow_frame_, Self(), ResultRegister());
+    return DoFilledNewArray</*is_range=*/ true>(inst_, shadow_frame_, Self(), ResultRegister());
   }
 
   HANDLER_ATTRIBUTES bool FILL_ARRAY_DATA() {

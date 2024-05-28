@@ -20,6 +20,7 @@
 #include "interpreter_switch_impl-inl.h"
 
 #include "oat/aot_class_linker.h"
+#include "transaction.h"
 
 namespace art HIDDEN {
 namespace interpreter {
@@ -53,6 +54,11 @@ class ActiveTransactionChecker {
   static void RecordArrayElementsInTransaction(ObjPtr<mirror::Object> array, int32_t count)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
+  static void RecordAllocatedObject([[maybe_unused]] ObjPtr<mirror::Object> new_object)
+      REQUIRES_SHARED(Locks::mutator_lock_) {
+    GetClassLinker()->GetTransaction()->RecordAllocatedObject(new_object);
+  }
+
  private:
   static AotClassLinker* GetClassLinker() {
     return down_cast<AotClassLinker*>(Runtime::Current()->GetClassLinker());
@@ -61,12 +67,12 @@ class ActiveTransactionChecker {
 
 // TODO: Use ObjPtr here.
 template<typename T>
-static void RecordArrayElementsInTransactionImpl(ObjPtr<mirror::PrimitiveArray<T>> array,
+static void RecordArrayElementsInTransactionImpl(Transaction* transaction,
+                                                 ObjPtr<mirror::PrimitiveArray<T>> array,
                                                  int32_t count)
     REQUIRES_SHARED(Locks::mutator_lock_) {
-  Runtime* runtime = Runtime::Current();
   for (int32_t i = 0; i < count; ++i) {
-    runtime->GetClassLinker()->RecordWriteArray(array.Ptr(), i, array->GetWithoutChecks(i));
+    transaction->RecordWriteArray(array.Ptr(), i, array->GetWithoutChecks(i));
   }
 }
 
@@ -78,6 +84,10 @@ void ActiveTransactionChecker::RecordArrayElementsInTransaction(ObjPtr<mirror::O
   }
   DCHECK(array->IsArrayInstance());
   DCHECK_LE(count, array->AsArray()->GetLength());
+  Transaction* transaction = GetClassLinker()->GetTransaction();
+  if (!transaction->NeedsTransactionRecords(array.Ptr())) {
+    return;
+  }
   // No read barrier is needed for reading a chain of constant references
   // for reading a constant primitive value, see `ReadBarrierOption`.
   Primitive::Type primitive_component_type =
@@ -85,28 +95,28 @@ void ActiveTransactionChecker::RecordArrayElementsInTransaction(ObjPtr<mirror::O
           ->GetComponentType<kDefaultVerifyFlags, kWithoutReadBarrier>()->GetPrimitiveType();
   switch (primitive_component_type) {
     case Primitive::kPrimBoolean:
-      RecordArrayElementsInTransactionImpl(array->AsBooleanArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsBooleanArray(), count);
       break;
     case Primitive::kPrimByte:
-      RecordArrayElementsInTransactionImpl(array->AsByteArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsByteArray(), count);
       break;
     case Primitive::kPrimChar:
-      RecordArrayElementsInTransactionImpl(array->AsCharArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsCharArray(), count);
       break;
     case Primitive::kPrimShort:
-      RecordArrayElementsInTransactionImpl(array->AsShortArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsShortArray(), count);
       break;
     case Primitive::kPrimInt:
-      RecordArrayElementsInTransactionImpl(array->AsIntArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsIntArray(), count);
       break;
     case Primitive::kPrimFloat:
-      RecordArrayElementsInTransactionImpl(array->AsFloatArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsFloatArray(), count);
       break;
     case Primitive::kPrimLong:
-      RecordArrayElementsInTransactionImpl(array->AsLongArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsLongArray(), count);
       break;
     case Primitive::kPrimDouble:
-      RecordArrayElementsInTransactionImpl(array->AsDoubleArray(), count);
+      RecordArrayElementsInTransactionImpl(transaction, array->AsDoubleArray(), count);
       break;
     default:
       LOG(FATAL) << "Unsupported primitive type " << primitive_component_type

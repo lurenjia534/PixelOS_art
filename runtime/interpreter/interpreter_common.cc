@@ -1448,7 +1448,7 @@ bool DoCall(ArtMethod* called_method,
       is_string_init);
 }
 
-template <bool is_range, bool transaction_active>
+template <bool is_range>
 bool DoFilledNewArray(const Instruction* inst,
                       const ShadowFrame& shadow_frame,
                       Thread* self,
@@ -1506,13 +1506,21 @@ bool DoFilledNewArray(const Instruction* inst,
   } else {
     inst->GetVarArgs(arg);
   }
-  for (int32_t i = 0; i < length; ++i) {
-    size_t src_reg = is_range ? vregC + i : arg[i];
-    if (is_primitive_int_component) {
-      new_array->AsIntArray()->SetWithoutChecks<transaction_active>(
+  // We're initializing a newly allocated array, so we do not need to record that under
+  // a transaction. If the transaction is aborted, the whole array shall be unreachable.
+  if (LIKELY(is_primitive_int_component)) {
+    ObjPtr<mirror::IntArray> int_array = new_array->AsIntArray();
+    for (int32_t i = 0; i < length; ++i) {
+      size_t src_reg = is_range ? vregC + i : arg[i];
+      int_array->SetWithoutChecks</*kTransactionActive=*/ false, /*kCheckTransaction=*/ false>(
           i, shadow_frame.GetVReg(src_reg));
-    } else {
-      new_array->AsObjectArray<mirror::Object>()->SetWithoutChecks<transaction_active>(
+    }
+  } else {
+    ObjPtr<mirror::ObjectArray<mirror::Object>> object_array =
+        new_array->AsObjectArray<mirror::Object>();
+    for (int32_t i = 0; i < length; ++i) {
+      size_t src_reg = is_range ? vregC + i : arg[i];
+      object_array->SetWithoutChecks</*kTransactionActive=*/ false, /*kCheckTransaction=*/ false>(
           i, shadow_frame.GetVRegReference(src_reg));
     }
   }
@@ -1600,18 +1608,14 @@ EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL(true);
 #undef EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL
 
 // Explicit DoFilledNewArray template function declarations.
-#define EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(_is_range_, _transaction_active)               \
-  template REQUIRES_SHARED(Locks::mutator_lock_)                                                  \
-  bool DoFilledNewArray<_is_range_, _transaction_active>(const Instruction* inst,                 \
-                                                         const ShadowFrame& shadow_frame,         \
-                                                         Thread* self,                            \
-                                                         JValue* result)
-#define EXPLICIT_DO_FILLED_NEW_ARRAY_ALL_TEMPLATE_DECL(_transaction_active)                       \
-  EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(false, _transaction_active);                         \
-  EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(true, _transaction_active)
-EXPLICIT_DO_FILLED_NEW_ARRAY_ALL_TEMPLATE_DECL(false);
-EXPLICIT_DO_FILLED_NEW_ARRAY_ALL_TEMPLATE_DECL(true);
-#undef EXPLICIT_DO_FILLED_NEW_ARRAY_ALL_TEMPLATE_DECL
+#define EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(_is_range_)               \
+  template REQUIRES_SHARED(Locks::mutator_lock_)                             \
+  bool DoFilledNewArray<_is_range_>(const Instruction* inst,                 \
+                                    const ShadowFrame& shadow_frame,         \
+                                    Thread* self,                            \
+                                    JValue* result)
+EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(false);
+EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(true);
 #undef EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL
 
 }  // namespace interpreter
