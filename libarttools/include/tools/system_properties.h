@@ -29,6 +29,11 @@ namespace tools {
 // android::base::GetProperty, this class is mockable.
 class SystemProperties {
  public:
+  SystemProperties() = default;
+  SystemProperties(const SystemProperties& other) = default;
+  SystemProperties& operator=(const SystemProperties& other) = default;
+  SystemProperties(SystemProperties&& other) = default;
+  SystemProperties& operator=(SystemProperties&& other) = default;
   virtual ~SystemProperties() = default;
 
   // Returns the current value of the system property `key`, or `default_value` if the property
