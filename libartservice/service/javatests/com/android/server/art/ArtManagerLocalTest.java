@@ -185,7 +185,7 @@ public class ArtManagerLocalTest {
         lenient().when(mInjector.getContext()).thenReturn(mContext);
         lenient().when(mInjector.getPreRebootDexoptJob()).thenReturn(mPreRebootDexoptJob);
         lenient()
-                .when(mInjector.createPreRebootStatsReporter())
+                .when(mInjector.getPreRebootStatsReporter())
                 .thenAnswer(
                         invocation -> new PreRebootStatsReporter(mPreRebootStatsReporterInjector));
 

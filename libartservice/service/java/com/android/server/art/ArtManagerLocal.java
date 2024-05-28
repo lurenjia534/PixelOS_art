@@ -131,8 +131,9 @@ public final class ArtManagerLocal {
 
     private boolean mShouldCommitPreRebootStagedFiles = false;
 
-    // A temporary object for holding stats while staged files are being committed.
-    @Nullable private PreRebootStatsReporter mPreRebootStatsReporter = null;
+    // A temporary object for holding stats while staged files are being committed, used in two
+    // places: `onBoot` and the `BroadcastReceiver` of `ACTION_BOOT_COMPLETED`.
+    @Nullable private PreRebootStatsReporter.AfterRebootSession mStatsAfterRebootSession = null;
 
     @Deprecated
     public ArtManagerLocal() {
@@ -880,7 +881,8 @@ public final class ArtManagerLocal {
                 // to commit files for secondary dex files because they are not decrypted before
                 // then.
                 mShouldCommitPreRebootStagedFiles = true;
-                mPreRebootStatsReporter = mInjector.createPreRebootStatsReporter();
+                mStatsAfterRebootSession =
+                        mInjector.getPreRebootStatsReporter().new AfterRebootSession();
                 commitPreRebootStagedFiles(snapshot, false /* forSecondary */);
             }
             dexoptPackages(snapshot, bootReason, new CancellationSignal(), progressCallbackExecutor,
@@ -908,8 +910,8 @@ public final class ArtManagerLocal {
                     try (var snapshot = mInjector.getPackageManagerLocal().withFilteredSnapshot()) {
                         commitPreRebootStagedFiles(snapshot, true /* forSecondary */);
                     }
-                    mPreRebootStatsReporter.reportAsync();
-                    mPreRebootStatsReporter = null;
+                    mStatsAfterRebootSession.reportAsync();
+                    mStatsAfterRebootSession = null;
                 }
             }, new IntentFilter(Intent.ACTION_BOOT_COMPLETED));
         }
@@ -1140,7 +1142,7 @@ public final class ArtManagerLocal {
                     // to commit the profile can potentially cause a permanent performance
                     // regression.
                     if (mInjector.getArtd().commitPreRebootStagedFiles(artifacts, profiles)) {
-                        mPreRebootStatsReporter.recordPackageWithArtifacts(
+                        mStatsAfterRebootSession.recordPackageWithArtifacts(
                                 pkgState.getPackageName());
                     }
                 } catch (ServiceSpecificException e) {
@@ -1657,7 +1659,7 @@ public final class ArtManagerLocal {
 
         @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
         @NonNull
-        public PreRebootStatsReporter createPreRebootStatsReporter() {
+        public PreRebootStatsReporter getPreRebootStatsReporter() {
             return new PreRebootStatsReporter();
         }
     }

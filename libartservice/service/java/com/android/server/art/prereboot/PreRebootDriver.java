@@ -83,15 +83,16 @@ public class PreRebootDriver {
      * @param otaSlot The slot that contains the OTA update, "_a" or "_b", or null for a Mainline
      *         update.
      */
-    public boolean run(@Nullable String otaSlot, @NonNull CancellationSignal cancellationSignal,
-            @NonNull PreRebootStatsReporter statsReporter) {
+    public boolean run(@Nullable String otaSlot, @NonNull CancellationSignal cancellationSignal) {
+        var statsReporter = new PreRebootStatsReporter();
+        boolean success = false;
         try {
             statsReporter.recordJobStarted();
             if (!setUp(otaSlot)) {
-                statsReporter.recordJobEnded(Status.STATUS_FAILED);
                 return false;
             }
             runFromChroot(cancellationSignal);
+            success = true;
             return true;
         } catch (RemoteException e) {
             Utils.logArtdException(e);
@@ -101,10 +102,8 @@ public class PreRebootDriver {
             AsLog.e("Failed to run pre-reboot dexopt", e);
         } finally {
             tearDown(false /* throwing */);
+            statsReporter.recordJobEnded(success);
         }
-        // Only report the failed case here. The finished and cancelled cases are reported by
-        // PreRebootManager.
-        statsReporter.recordJobEnded(Status.STATUS_FAILED);
         return false;
     }
 
