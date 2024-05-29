@@ -4163,9 +4163,13 @@ void ClassLinker::LoadMethod(const DexFile& dex_file,
     }
   }
 
-  if (Runtime::Current()->IsZygote() &&
+  if ((access_flags & kAccAbstract) == 0u &&
+      Runtime::Current()->IsZygote() &&
       !Runtime::Current()->GetJITOptions()->GetProfileSaverOptions().GetProfileBootClassPath()) {
+    DCHECK(!ArtMethod::IsAbstract(access_flags));
+    DCHECK(!ArtMethod::IsIntrinsic(access_flags));
     dst->SetMemorySharedMethod();
+    dst->SetHotCounter();
   }
 }
 

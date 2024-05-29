@@ -618,9 +618,6 @@ class ImageWriter final {
   void CopyAndFixupPointer(void* object, MemberOffset offset, ValueType src_value)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  void ResetNterpFastPathFlags(ArtMethod* copy, ArtMethod* orig)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-
   ALWAYS_INLINE
   static bool IsStronglyInternedString(ObjPtr<mirror::String> str)
       REQUIRES_SHARED(Locks::mutator_lock_);
@@ -639,6 +636,12 @@ class ImageWriter final {
 
   const CompilerOptions& compiler_options_;
 
+  // Size of pointers on the target architecture.
+  PointerSize target_ptr_size_;
+
+  // Whether to mark non-abstract, non-intrinsic methods as "memory shared methods".
+  bool mark_memory_shared_methods_;
+
   // Cached boot image begin and size. This includes heap, native objects and oat files.
   const uint32_t boot_image_begin_;
   const uint32_t boot_image_size_;
@@ -655,9 +658,6 @@ class ImageWriter final {
 
   // Oat index map for objects.
   HashMap<mirror::Object*, uint32_t> oat_index_map_;
-
-  // Size of pointers on the target architecture.
-  PointerSize target_ptr_size_;
 
   // Image data indexed by the oat file index.
   dchecked_vector<ImageInfo> image_infos_;
