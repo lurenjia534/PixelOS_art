@@ -198,9 +198,10 @@ static gc::CollectorType FetchCmdlineGcType() {
   std::string argv;
   gc::CollectorType gc_type = gc::CollectorType::kCollectorTypeNone;
   if (android::base::ReadFileToString("/proc/self/cmdline", &argv)) {
-    if (argv.find("-Xgc:CMC") != std::string::npos) {
+    auto pos = argv.rfind("-Xgc:");
+    if (argv.substr(pos + 5, 3) == "CMC") {
       gc_type = gc::CollectorType::kCollectorTypeCMC;
-    } else if (argv.find("-Xgc:CC") != std::string::npos) {
+    } else if (argv.substr(pos + 5, 2) == "CC") {
       gc_type = gc::CollectorType::kCollectorTypeCC;
     }
   }
