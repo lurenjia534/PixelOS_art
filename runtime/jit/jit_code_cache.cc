@@ -567,9 +567,9 @@ void JitCodeCache::RemoveMethodsIn(Thread* self, const LinearAlloc& alloc) {
       if (alloc.ContainsUnsafe(it->second)) {
         method_headers.insert(OatQuickMethodHeader::FromCodePointer(it->first));
         VLOG(jit) << "JIT removed " << it->second->PrettyMethod() << ": " << it->first;
-        it = method_code_map_.erase(it);
         zombie_code_.erase(it->first);
         processed_zombie_code_.erase(it->first);
+        it = method_code_map_.erase(it);
       } else {
         ++it;
       }
